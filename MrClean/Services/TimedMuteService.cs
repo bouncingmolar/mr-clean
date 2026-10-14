@@ -215,9 +215,9 @@ public sealed class TimedMuteService : BackgroundService
             }
         }
 
-        await message.ReplyAsync(existing == null
-            ? "Shushed for 30 minutes."
-            : "Shush timer reset to 30 minutes.");
+        await message.ReplyAsync(
+            "<@716390085896962058> go bye bye for 30 minutes.",
+            allowedMentions: AllowedMentions.None);
     }
 
     private async Task UnshushAsync(SocketUserMessage message, IGuildUser target, SocketRole role)
