@@ -35,9 +35,27 @@ public class SlashCommandDispatcher
         var guild = client.GetGuild(_options.GuildId);
         var commands = _commands.Select(c => c.Properties).ToArray();
 
+        var globalCommands = await client.GetGlobalApplicationCommandsAsync();
+        Console.WriteLine($"DISCORD GLOBAL COMMANDS ({globalCommands.Count}):");
+        foreach (var command in globalCommands)
+            Console.WriteLine($"  GLOBAL {command.Id} /{command.Name}");
+
+        var guildCommands = await guild.GetApplicationCommandsAsync();
+        Console.WriteLine($"DISCORD GUILD COMMANDS ({guildCommands.Count}):");
+        foreach (var command in guildCommands)
+            Console.WriteLine($"  GUILD  {command.Id} /{command.Name}");
+
         // If running in the production mode, register the commands globally instead of using guild-local ones
         if (_environment.IsDevelopment())
         {
+            await client.BulkOverwriteGlobalApplicationCommandsAsync(
+                Array.Empty<ApplicationCommandProperties>());
+
+            var globalsAfterCleanup = await client.GetGlobalApplicationCommandsAsync();
+            Console.WriteLine($"GLOBALS AFTER CLEANUP ({globalsAfterCleanup.Count}):");
+            foreach (var command in globalsAfterCleanup)
+                Console.WriteLine($"  GLOBAL {command.Id} /{command.Name}");
+
             await guild.BulkOverwriteApplicationCommandAsync(commands);
             await guild.DownloadUsersAsync();
             return;
@@ -83,6 +101,7 @@ public class SlashCommandDispatcher
 
         // If the member doesn't have the MANAGE_GUILD permissions
         if (member is not {GuildPermissions.ManageGuild: true})
+        {
             await command.RespondAsync(
                 ephemeral: true,
                 components: new ComponentBuilder()
@@ -101,6 +120,19 @@ public class SlashCommandDispatcher
                     .Build()
             );
 
-        await handler.HandleCommandInvocationAsync(command);
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await handler.HandleCommandInvocationAsync(command);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Slash command {command.CommandName} failed: {ex}");
+            }
+        });
     }
 }

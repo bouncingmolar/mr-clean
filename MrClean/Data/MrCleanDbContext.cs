@@ -11,4 +11,10 @@ public class MrCleanDbContext : DbContext
     }
 
     public virtual DbSet<MessageFilter> MessageFilters { get; set; }
+
+    public virtual DbSet<MessageRetentionRule> MessageRetentionRules { get; set; }
+
+    public virtual DbSet<RoleLoggingConfiguration> RoleLoggingConfigurations { get; set; }
+
+    public virtual DbSet<RoleLogRoute> RoleLogRoutes { get; set; }
 }
