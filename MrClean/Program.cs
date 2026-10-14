@@ -53,12 +53,13 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton(new DiscordSocketClient(new DiscordSocketConfig
         {
             AlwaysDownloadUsers = true,
-            GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildMembers,
+            GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildMembers | GatewayIntents.MessageContent,
         }));
         services.AddSingleton<MessageRetentionScanner>();
         services.AddSingleton<IRoleLoggingService, RoleLoggingService>();
         services.AddSingleton<RoleChangeLogger>();
         services.AddHostedService<DiscordBotService>();
+        services.AddHostedService<TimedMuteService>();
         services.AddHostedService<MessageRetentionBackgroundService>();
         services.AddDbContextFactory<MrCleanDbContext>(options =>
         {
