@@ -95,6 +95,12 @@ This is particularly useful for automatically assigned activity roles: high-volu
 
 If a role has no specific route, its changes go to the default role-log channel.
 
+### Avatar-change logging
+
+Mr. Clean logs changes to a member's effective server avatar in the configured avatar-log channel. Server-specific avatar overrides take precedence over global avatars. Each log contains the new image as an uploaded attachment; no previous avatar is included.
+
+The logger initializes its in-memory snapshots without posting historical changes, then checks gateway member updates and performs a full guild-member gateway refresh every six hours. Discord does not provide a dependable gateway event for another member's global avatar changes to bots, and the `USER_UPDATE` event is not a complete feed for all guild members. As a result, reconciliation can discover some changes missed by gateway events, but cannot guarantee complete or immediate coverage.
+
 ## Slash commands
 
 ### Filters
