@@ -64,7 +64,7 @@ public class MessageFilteringService
 
                 // If there are no webhooks in this channel, create a new one
                 var webhooks = await repostChannel.GetWebhooksAsync();
-                var webhook = webhooks.FirstOrDefault(w => w.Name == "mr-clean-webhook") 
+                var webhook = webhooks.FirstOrDefault(w => w.Name == "mr-clean-webhook")
                               ?? await repostChannel.CreateWebhookAsync("mr-clean-webhook");
 
                 var webhookClient = new DiscordWebhookClient(webhook);
@@ -103,7 +103,7 @@ public class MessageFilteringService
         }
         catch (Exception exception)
         {
-            _logger.LogCritical("Exception during handling message: {exception}", exception.Message); 
+            _logger.LogCritical("Exception during handling message: {exception}", exception.Message);
             throw;
         }
     }
@@ -115,14 +115,11 @@ public class MessageFilteringService
         if (!pattern.IsMatch(message.CleanContent))
         {
             // Check content of all embeds for a match against the regex
-            var match = message.Embeds
-                .SelectMany(e => new []{e.Title, e.Description})
-                .Where(e => e != null)
-                .Any(e => pattern.IsMatch(e));
+            var match = message.Embeds.Any(e => MatchesEmbed(pattern, e));
 
             if (!match) return false;
         }
-        
+
         // There are no denied roles, return false
         if (member.Roles.Any(r => filter.Roles.DeniedEntities.Contains(r.Id))) return false;
 
@@ -130,4 +127,29 @@ public class MessageFilteringService
                filter.Users.AllowsEntity(message.Author.Id) &&
                member.Roles.Any(r => filter.Roles.AllowsEntity(r.Id));
     }
+    internal static bool MatchesPattern(MessageFilter filter, IMessage message)
+    {
+        var pattern = new Regex(filter.Pattern ?? ".*");
+
+        return MessageTextExtractor.GetTexts(message)
+            .Any(text => pattern.IsMatch(text));
+    }
+
+    internal static bool MatchesEmbed(Regex pattern, IEmbed embed)
+    {
+        var texts = new[]
+            {
+                embed.Title,
+                embed.Description,
+                embed.Author?.Name,
+                embed.Footer?.Text,
+                embed.Url
+            }
+            .Concat(embed.Fields.SelectMany(f => new[] { f.Name, f.Value }))
+            .Where(text => !string.IsNullOrEmpty(text));
+
+        return texts.Any(text => pattern.IsMatch(text!));
+    }
+
+
 }

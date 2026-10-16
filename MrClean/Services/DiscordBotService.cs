@@ -9,6 +9,7 @@ using MrClean.Commands.TypeReaders;
 using MrClean.Configuration;
 using MrClean.Data;
 using MrClean.Models;
+using MrClean.Services.RoleLogging;
 
 namespace MrClean.Services;
 
@@ -30,6 +31,8 @@ public class DiscordBotService : BackgroundService
 
     private readonly IDbContextFactory<MrCleanDbContext> _contextFactory;
 
+    private readonly RoleChangeLogger _roleChangeLogger;
+
     public DiscordBotService(
         ILogger<DiscordBotService> logger,
         IOptions<DiscordOptions> options,
@@ -37,7 +40,9 @@ public class DiscordBotService : BackgroundService
         SlashCommandDispatcher dispatcher,
         MessageFilteringService filter,
         CommandService commandService,
-        IServiceProvider services)
+        IServiceProvider services,
+        DiscordSocketClient client,
+        RoleChangeLogger roleChangeLogger)
     {
         _logger = logger;
         _contextFactory = contextFactory;
@@ -46,14 +51,8 @@ public class DiscordBotService : BackgroundService
         _filter = filter;
         _commandService = commandService;
         _services = services;
-
-        var config = new DiscordSocketConfig
-        {
-            AlwaysDownloadUsers = true,
-            GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildMembers,
-        };
-
-        _client = new DiscordSocketClient(config);
+        _client = client;
+        _roleChangeLogger = roleChangeLogger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -70,6 +69,7 @@ public class DiscordBotService : BackgroundService
         _client.MessageReceived += HandleMessageAsync;
 
         _filter.RegisterMessageHandler(_client);
+        _roleChangeLogger.Register(_client);
 
         _commandService.AddTypeReader<SpecificationEntityType>(new SpecificationEntityTypeReader());
         _commandService.AddTypeReader<ISnowflakeEntity>(new SnowflakeEntityTypeReader());
@@ -118,7 +118,11 @@ public class DiscordBotService : BackgroundService
 
     private Task HandleLogMessageAsync(LogMessage message)
     {
-        _logger.LogInformation("{message}", message.Message);
+        if (message.Exception != null)
+            _logger.LogError(message.Exception, "{message}", message.Message);
+        else
+            _logger.LogInformation("{message}", message.Message);
+
         return Task.CompletedTask;
     }
 
