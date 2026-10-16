@@ -12,6 +12,7 @@ using MrClean.Services;
 using MrClean.Services.Filters;
 using MrClean.Services.Retention;
 using MrClean.Services.RoleLogging;
+using MrClean.Services.AvatarLogging;
 using Discord.WebSocket;
 
 var host = Host.CreateDefaultBuilder(args)
@@ -58,7 +59,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<MessageRetentionScanner>();
         services.AddSingleton<IRoleLoggingService, RoleLoggingService>();
         services.AddSingleton<RoleChangeLogger>();
-        services.AddHostedService<DiscordBotService>();
+        services.AddDiscordHostedServices();
         services.AddHostedService<TimedMuteService>();
         services.AddHostedService<MessageRetentionBackgroundService>();
         services.AddDbContextFactory<MrCleanDbContext>(options =>
