@@ -19,8 +19,7 @@ public sealed class AvatarChangeLogger : BackgroundService
     private readonly ulong _guildId;
     private readonly AvatarSnapshotCache _avatars = new();
     private readonly SemaphoreSlim _gate = new(1, 1);
-    private readonly TaskCompletionSource _ready = new(
-        TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly SemaphoreSlim _refresh = new(0, 1);
     private volatile bool _initialized;
 
     public AvatarChangeLogger(
@@ -33,20 +32,27 @@ public sealed class AvatarChangeLogger : BackgroundService
         _logger = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    public override Task StartAsync(CancellationToken cancellationToken)
     {
+        // Subscribe synchronously before the host starts the Discord connection service.
         _client.Ready += HandleReadyAsync;
+        _client.GuildAvailable += HandleGuildAvailableAsync;
         _client.GuildMemberUpdated += HandleGuildMemberUpdatedAsync;
         _client.UserUpdated += HandleUserUpdatedAsync;
+        return base.StartAsync(cancellationToken);
+    }
 
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
         try
         {
-            await _ready.Task.WaitAsync(stoppingToken);
-
-            using var timer = new PeriodicTimer(ReconciliationInterval);
-            while (await timer.WaitForNextTickAsync(stoppingToken))
+            await _refresh.WaitAsync(stoppingToken);
+            while (!stoppingToken.IsCancellationRequested)
             {
                 await ReconcileAsync(stoppingToken);
+                await _refresh.WaitAsync(
+                    _initialized ? ReconciliationInterval : TimeSpan.FromSeconds(30),
+                    stoppingToken);
             }
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -55,55 +61,27 @@ public sealed class AvatarChangeLogger : BackgroundService
         finally
         {
             _client.Ready -= HandleReadyAsync;
+            _client.GuildAvailable -= HandleGuildAvailableAsync;
             _client.GuildMemberUpdated -= HandleGuildMemberUpdatedAsync;
             _client.UserUpdated -= HandleUserUpdatedAsync;
         }
     }
 
-    private async Task HandleReadyAsync()
+    private Task HandleReadyAsync()
     {
-        var guild = _client.GetGuild(_guildId);
-        if (guild == null)
+        // Never await a member download on the gateway event loop: it must process
+        // member chunks to complete that download.
+        lock (_refresh)
         {
-            _logger.LogWarning(
-                "Avatar logging guild {GuildId} was not found.",
-                _guildId);
-            _ready.TrySetResult();
-            return;
+            if (_refresh.CurrentCount == 0)
+                _refresh.Release();
         }
+        return Task.CompletedTask;
+    }
 
-        var reconcile = false;
-        await _gate.WaitAsync();
-        try
-        {
-            if (!_initialized)
-            {
-                foreach (var member in guild.Users)
-                    _avatars.Remember(member.Id, member.DisplayAvatarId);
-
-                _initialized = true;
-                _logger.LogInformation(
-                    "Initialized avatar snapshots for {MemberCount} members in guild {GuildId}.",
-                    guild.Users.Count,
-                    _guildId);
-            }
-            else
-            {
-                reconcile = true;
-            }
-        }
-        catch (Exception exception)
-        {
-            _logger.LogError(exception, "Failed to initialize avatar logging.");
-        }
-        finally
-        {
-            _gate.Release();
-            _ready.TrySetResult();
-        }
-
-        if (reconcile)
-            await ReconcileAsync(CancellationToken.None);
+    private Task HandleGuildAvailableAsync(SocketGuild guild)
+    {
+        return guild.Id == _guildId ? HandleReadyAsync() : Task.CompletedTask;
     }
 
     private async Task HandleGuildMemberUpdatedAsync(
@@ -233,8 +211,27 @@ public sealed class AvatarChangeLogger : BackgroundService
 
         try
         {
-            await guild.DownloadUsersAsync();
+            await _avatars.InitializeAsync(
+                () => guild.DownloadUsersAsync().WaitAsync(cancellationToken),
+                () => guild.Users.Select(member =>
+                    new KeyValuePair<ulong, string?>(member.Id, member.DisplayAvatarId)),
+                cancellationToken);
+
+            if (!_initialized)
+            {
+                _initialized = true;
+                _logger.LogInformation(
+                    "Initialized avatar snapshots for {MemberCount} members in guild {GuildId}.",
+                    guild.Users.Count,
+                    _guildId);
+                return;
+            }
+
             await ReconcileGuildAsync(guild, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception exception)
         {
