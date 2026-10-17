@@ -35,19 +35,26 @@ Its current member roles are:
 | Listening | `1069145494674214973` | 2 holders; recover TuxedoMan enable flag. |
 | Watching | `1069145496054153236` | 7 holders including bots; recover enable flag; bulk adoption excludes bots. |
 | Streaming | `1069145496985284648` | 4 holders; recover enable flag and existing/default route. |
-| Playing Gartic.io | `1069202917283868742` | Role existence is verified; exact activity aliases/type are not. |
-| Playing Gartic Phone | `1069579310022807672` | Same restriction. |
-| Playing TETR.IO | `1092394298139480146` | Same restriction. |
-| Playing Sketchful.io | `1422351434501984268` | Same restriction. |
-| Playing Minecraft | `1557000596647575582` | Same restriction. |
 
-**No role named Playing Codenames exists.** `codenames` **`963037960230551582`** has 37 holders and zero permissions; that does not establish automation ownership. Do not bulk-adopt it or use it as the shared activity role by inference. Decide before approval whether to create a dedicated Playing Codenames role explicitly, select another reviewed existing role, or exclude the shared-role test from the approved scope.
+The administrator supplied the following **actual `tx roles` export**. All seven role IDs were independently verified with a Discord guild-roles GET on 18 October 2026; each name has exactly one match, each role is non-managed with zero permissions. These tracked-game mappings use Playing, matching TuxedoMan's named-game handling. Activity names come from the export, not from role-name inference. Reuse these IDs without creating, renaming or replacing roles.
 
-Existing Other Games/Listening/Watching role routes are Annoyinglog **`1556935145418919937`**. Connected currently routes to Music and is suppressed by old bee7e73; the pending voice migration derives the common Annoyinglog route and restores its logging. The five named role routes inspected otherwise retain their current configuration; do not infer a route from a similar role name. No private TuxedoMan tracking database/mappings were recoverable locally or through Mr-Clean REST. Guild role names are only inventory, not an activity mapping export.
+| Existing role name | Verified role ID | Exact activity name | Type |
+| --- | --- | --- | --- |
+| Playing TETR.IO | `1092394298139480146` | `TETR.IO` | Playing |
+| Playing Sketchful.io | `1422351434501984268` | `Sketchful.io` | Playing |
+| Playing Minecraft | `1557000596647575582` | `Minecraft` | Playing |
+| VALORANT | `1069147944227442708` | `VALORANT` | Playing |
+| Playing Gartic.io | `1069202917283868742` | `Gartic.io` | Playing |
+| Playing Gartic Phone | `1069579310022807672` | `Gartic` | Playing |
+| A Mong Goose | `1073952995357753354` | `Among Us` | Playing |
+
+**Codenames decision is settled:** create a dedicated `Playing Codenames` role during the approved window, once `/activity inspect` confirms the exact PreMiD name/type. No such role currently exists; its ID is not available until creation. Bind that same new ID to presence and Codenames voice source `1126902663607484476`. Never reuse/adopt the 37-holder community `codenames` role `963037960230551582`. Creation is planned, not performed. If a suitable dedicated role has appeared before deployment, inspect and safely reuse it rather than create a duplicate.
+
+Existing Other Games/Listening/Watching role routes are Annoyinglog **`1556935145418919937`**. Connected currently routes to Music and is suppressed by old bee7e73; the pending voice migration derives the common Annoyinglog route and restores its logging. Existing named-role routes retain their current configuration; do not infer a route from a similar role name. The seven named mappings are now established by the administrator's export. No private TuxedoMan database was accessed, and generic category enable flags/event-role settings still require confirmation.
 
 ### Manual discovery required before final approval
 
-Using the existing TuxedoMan interface, export/capture the exact aliases and generic flags. Its public source documents default prefix `tx`, read-only `roles` and `roles inspect <role-id>` commands; try `tx roles` and `tx roles inspect 1069202917283868742` manually **only after confirming the actual guild prefix**. These produce bot replies and have not been sent during this audit. Source version/runtime prefix are not independently verified. Do not run `setup`, `track`, `untrack` or toggle `settings` just to inspect: those mutate configuration, can create roles, or reconcile members. If the installed bot offers no non-mutating settings display, ask its operator for an export/confirmation of enabled categories. Copy aliases/flags, role IDs, reviewed human holder lists and any event-role configuration into private storage.
+The named-game export is now supplied and recorded above; do not rediscover/guess those seven names. The seven supplied entries are the named-game transfer set; any later additions must be explicitly documented. Generic flags and event-role settings are not part of `tx roles`. Obtain those through a non-mutating settings display or the bot operator. Do not toggle `settings`, run `setup`, `track` or `untrack` just to inspect: those mutate configuration, can create roles, or reconcile members. Preserve the supplied export, category flags and reviewed human holder/adoption lists privately for rollback.
 
 TuxedoMan also supports event roles; confirm whether that functionality is enabled/in use. Mr-Clean's current release does not replace TuxedoMan event-role automation. Existing event roles remain, but retiring the bot would stop that automation. This is a scope blocker if used.
 
@@ -167,18 +174,44 @@ Check guild management false, four voice rules with empty role lists, actual sup
 
 ## Block E — stage reviewed rules, then transfer authority in Discord
 
-The following are command templates using Discord's native role/member/channel selectors, not shell commands or literal role-name lookup. Verify each selected ID. `Observed Name` below must be replaced with the measured exact case-sensitive activity name. No names are inferred from the inventory.
+Use the following exact activity names and **native role option IDs**. `role:<@&ID>` below denotes the existing role mention/selection; Discord's slash UI requires selecting the role object (paste/search its ID in the role picker). It is not a free-text role-name lookup or a shell command. Quotes delimit names containing spaces and are not part of the stored activity name. All commands remain future manual actions during the approved window.
+
+Stage the seven exported mappings while `/activity list` shows guild management disabled:
 
 ```text
-/activity track name:"Observed Name" type:Playing role:@ReviewedExistingRole
-/activity fallback type:Playing enabled:true role:@Other-Games
-/activity fallback type:Listening enabled:<reviewed-true-or-false> role:@Listening
-/activity fallback type:Watching enabled:<reviewed-true-or-false> role:@Watching
-/activity fallback type:Streaming enabled:<reviewed-true-or-false> role:@Streaming
+/activity track name:TETR.IO type:Playing role:<@&1092394298139480146>
+/activity track name:Sketchful.io type:Playing role:<@&1422351434501984268>
+/activity track name:Minecraft type:Playing role:<@&1557000596647575582>
+/activity track name:VALORANT type:Playing role:<@&1069147944227442708>
+/activity track name:Gartic.io type:Playing role:<@&1069202917283868742>
+/activity track name:Gartic type:Playing role:<@&1069579310022807672>
+/activity track name:"Among Us" type:Playing role:<@&1073952995357753354>
 /activity list
 ```
 
-Use `/activity edit id:<id> ...` instead of registering duplicates. Repeat track for every exported alias and choose its observed type. Optional `application-id:<verified-id>` restricts name AND ID; omit when not verified. Rules/fallbacks can be enabled while guild management is false. Never use `create-role`/`create-default` for the existing generic roles. If a new dedicated Codenames role is explicitly approved, `/activity track name:"Verified Codenames Name" type:Playing create-role:"Playing Codenames"` creates or safely reuses it; record the resulting ID and newly created-role status for rollback. This decision has not been made.
+Omit application-ID restrictions for these name/type mappings: no IDs were exported and none should be guessed. Use `/activity edit id:<existing-rule-id> ...` if a mapping was already staged; repeating `track` for an existing name/type is rejected. Preserve `Gartic` → Playing Gartic Phone and `Among Us` → A Mong Goose exactly; do not substitute role names for activity names.
+
+These are the exact fallback commands **if all four categories are approved enabled**:
+
+```text
+/activity fallback type:Playing enabled:true role:<@&1069145493852131329>
+/activity fallback type:Listening enabled:true role:<@&1069145494674214973>
+/activity fallback type:Watching enabled:true role:<@&1069145496054153236>
+/activity fallback type:Streaming enabled:true role:<@&1069145496985284648>
+/activity list
+```
+
+Playing/Other Games is intended enabled. **Listening/Watching/Streaming enable flags remain a deployment question:** retaining the roles does not establish the previous enable flags. If a category must remain disabled, use its exact command above with `enabled:false`; record the approved final set before execution. Never use `create-default` or `create-role` for these eleven existing roles. Staged enabled rules/fallbacks cannot assign roles until the guild management switch is enabled.
+
+For the new dedicated Codenames role, first inspect a participant's real PreMiD activity. Then, with guild management still disabled, use the confirmed name and supported type:
+
+```text
+/activity inspect member:@Participant
+/activity track name:"<exact reported Codenames activity name>" type:<reported type> create-role:"Playing Codenames"
+/activity list
+```
+
+Only this new dedicated role uses `create-role`. The placeholders are intentional: the PreMiD name/type is still unknown, so an executable match cannot safely be filled in yet. Record the resulting role ID from configuration/Discord and verify Manage Roles/hierarchy. No Codenames application-ID restriction is needed unless independently verified and explicitly chosen. Keep the new role on rollback; do not automatically delete it or touch the community role.
 
 **Manual transfer interlock:** in Discord Server Settings → Members, select **TuxedoMan `441366628836442122`**, remove **RoleBot `767344292284334090` and tuxbot `1324170106099597372` from that member only**. Keep all role objects, other member assignments and VC Roles unchanged. Reopen the member/role settings and verify no effective Administrator/Manage Roles remains (include @everyone and every remaining role). Let in-flight operations settle and confirm no further TuxedoMan role mutations. Do not edit the shared RoleBot permissions. If effective revocation cannot be established, do not enable Mr-Clean. This is reversible and works without host access.
 
@@ -191,7 +224,7 @@ Only after the interlock succeeds:
 /activity adopt role:@ReviewedDedicatedGameRole confirm:true
 ```
 
-Repeat once per reviewed **distinct** enabled role. For mixed/manual grants use `/activity adopt role:@Role member:@ReviewedMember confirm:true` for each reviewed human instead of whole-role adoption. Bulk adoption downloads the member cache, refuses incomplete data and excludes bots. Compare reported counts to reviewed eligible humans, not raw holder totals above. Adoption persists ownership/contribution IDs but does not directly mutate Discord. It does not wake an immediate sweep itself; role changes reconcile on fresh events and the existing 30-second retry sweep. Monitor convergence. No blanket confirm-empty or wholesale role replacement.
+Repeat once per reviewed **distinct** enabled role: the seven verified named-role IDs above and each enabled generic role. A newly created Codenames role has no TuxedoMan grants to adopt; the reconciler owns grants it actually acquires. Do not bulk-adopt the community codenames role. For mixed/manual grants use `/activity adopt role:@Role member:@ReviewedMember confirm:true` for each reviewed human instead of whole-role adoption. Bulk adoption downloads the member cache, refuses incomplete data and excludes bots. Compare reported counts to reviewed eligible humans, not raw holder totals above. Adoption persists ownership/contribution IDs but does not directly mutate Discord. It does not wake an immediate sweep itself; role changes reconcile on fresh events and the existing 30-second retry sweep. Monitor convergence. No blanket confirm-empty or wholesale role replacement.
 
 Then configure only the approved dedicated shared role:
 
@@ -199,7 +232,7 @@ Then configure only the approved dedicated shared role:
 /voice edit channel:<Codenames source 1126902663607484476> add-role:@ReviewedPlayingCodenamesRole
 ```
 
-Use the same ID as the presence rule. Never select Connected or the 37-holder `codenames` community role without an explicit ownership decision. Check DB status read-only:
+Use the same ID as the presence rule. Never select Connected or the excluded 37-holder `codenames` community role. Select only the new dedicated Playing Codenames ID recorded above. Check DB status read-only:
 
 ```bash
 docker exec -i mr-clean-db sh -c 'exec psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
