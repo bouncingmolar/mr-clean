@@ -22,6 +22,91 @@ namespace MrClean.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("MrClean.Models.ActivityFallback", b =>
+                {
+                    b.Property<decimal>("GuildId")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("RoleId")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.HasKey("GuildId", "Type");
+
+                    b.ToTable("ActivityFallbacks");
+                });
+
+            modelBuilder.Entity("MrClean.Models.ActivityGuildSettings", b =>
+                {
+                    b.Property<decimal>("GuildId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("GuildId");
+
+                    b.ToTable("ActivityGuildSettings");
+                });
+
+            modelBuilder.Entity("MrClean.Models.ActivityMemberState", b =>
+                {
+                    b.Property<decimal>("GuildId")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<decimal>("UserId")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<string>("RoleIdsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("GuildId", "UserId");
+
+                    b.ToTable("ActivityMemberStates");
+                });
+
+            modelBuilder.Entity("MrClean.Models.ActivityRule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal?>("ApplicationId")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("GuildId")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("RoleId")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GuildId", "Type", "Name")
+                        .IsUnique();
+
+                    b.ToTable("ActivityRules");
+                });
+
             modelBuilder.Entity("MrClean.Models.MessageFilter", b =>
                 {
                     b.Property<int>("Id")

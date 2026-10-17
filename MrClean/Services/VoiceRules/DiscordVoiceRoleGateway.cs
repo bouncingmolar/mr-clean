@@ -13,9 +13,14 @@ public class DiscordVoiceRoleGateway : IVoiceRoleGateway
         var member = g?.GetUser(user);
         if (g?.IsConnected != true) return null;
         if (member != null) return new VoiceRoleMember(user, member.VoiceChannel?.Id, member.Roles.Select(x => x.Id).ToArray());
-        var downloaded = await ((IGuild)g).GetUserAsync(user, CacheMode.AllowDownload, new RequestOptions { CancelToken = token });
-        // REST cannot prove voice state; a present but uncached member must wait for cache refresh.
-        return downloaded == null ? new VoiceRoleMember(user, null, Array.Empty<ulong>()) : null;
+        try
+        {
+            var downloaded = await ((IGuild)g).GetUserAsync(user, CacheMode.AllowDownload, new RequestOptions { CancelToken = token });
+            // REST cannot prove voice state; a present but uncached member must wait for cache refresh.
+            return downloaded == null ? new VoiceRoleMember(user, null, Array.Empty<ulong>(), false) : null;
+        }
+        catch (Discord.Net.HttpException ex) when (ex.HttpCode == System.Net.HttpStatusCode.NotFound)
+        { return new VoiceRoleMember(user, null, Array.Empty<ulong>(), false); }
     }
     public Task<bool> CanManageAsync(ulong guild, ulong user, ulong role, CancellationToken token)
     {

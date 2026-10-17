@@ -13,11 +13,20 @@ public class MrCleanDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<ActivityRule>().HasIndex(x => new { x.GuildId, x.Type, x.Name }).IsUnique();
+        modelBuilder.Entity<ActivityFallback>().HasKey(x => new { x.GuildId, x.Type });
+        modelBuilder.Entity<ActivityGuildSettings>().HasKey(x => x.GuildId);
+        modelBuilder.Entity<ActivityMemberState>().HasKey(x => new { x.GuildId, x.UserId });
         modelBuilder.Entity<VoiceChannelRule>().HasIndex(x => new { x.GuildId, x.ChannelId }).IsUnique();
         modelBuilder.Entity<VoiceRoleOwnership>().HasKey(x => new { x.GuildId, x.UserId, x.RoleId });
         modelBuilder.Entity<VoiceLogMessage>().Property(x => x.Id).ValueGeneratedNever();
         modelBuilder.Entity<VoiceLogMessage>().HasIndex(x => x.Destination);
     }
+
+    public virtual DbSet<ActivityRule> ActivityRules { get; set; }
+    public virtual DbSet<ActivityFallback> ActivityFallbacks { get; set; }
+    public virtual DbSet<ActivityGuildSettings> ActivityGuildSettings { get; set; }
+    public virtual DbSet<ActivityMemberState> ActivityMemberStates { get; set; }
 
     public virtual DbSet<VoiceChannelRule> VoiceChannelRules { get; set; }
     public virtual DbSet<VoiceRoleOwnership> VoiceRoleOwnerships { get; set; }

@@ -28,7 +28,7 @@ public class VoiceRulesTests
         _factory = new Factory(); _rules = new VoiceRulesService(_factory); _gateway = new FakeGateway();
         _gateway.Member = new VoiceRoleMember(3, 10, Array.Empty<ulong>());
         _reconciler = new VoiceRoleReconciler(_factory, _rules, _gateway,
-            Options.Create(new VoiceLoggingOptions { ConnectedRoleId = Connected }), NullLogger<VoiceRoleReconciler>.Instance);
+            Options.Create(new VoiceLoggingOptions { Enabled = true, ConnectedRoleId = Connected }), NullLogger<VoiceRoleReconciler>.Instance);
     }
     private static VoiceChannelRule Rule(ulong channel = 10, params ulong[] roles) => new()
     { GuildId = 1, ChannelId = channel, DestinationId = 99, ActivityName = "Codenames", RoleIds = roles };
@@ -126,7 +126,7 @@ public class VoiceRulesTests
     {
         await Save(Rule(10, 20)); await Reconcile();
         _reconciler = new VoiceRoleReconciler(_factory, _rules, _gateway,
-            Options.Create(new VoiceLoggingOptions { ConnectedRoleId = Connected }), NullLogger<VoiceRoleReconciler>.Instance);
+            Options.Create(new VoiceLoggingOptions { Enabled = true, ConnectedRoleId = Connected }), NullLogger<VoiceRoleReconciler>.Instance);
         _gateway.Member = _gateway.Member! with { ChannelId = null };
         await _reconciler.ReconcileAsync(1, Array.Empty<ulong>(), CancellationToken.None);
         Assert.That(_gateway.Removed, Is.EqualTo(new ulong[] { 20 }));

@@ -136,7 +136,7 @@ The four source IDs exist only in migration seed data, never runtime selection l
 
 The last form permits cleanup after a source channel has been deleted. An edit omits any fields that should stay unchanged. `dynamic:true` substitutes the observed current channel name for `{activity}`; otherwise it substitutes `name`. Wording may also be a fixed phrase such as `Playing Codenames`. Name/wording are single-line and limited to 100/150 characters. `/voice list` shows IDs, enabled state, fixed/dynamic naming, wording, both logging/timing switches, destination and all activity roles. Listing does not ping roles or members.
 
-Activity role grants are opt-in: **no roles are seeded**. Playing Codenames must be explicitly configured later. Role changes reconcile promptly after voice events and rule edits, and every five seconds against actual cached voice membership. The reconciler ignores stale event channels, so duplicate/out-of-order notifications do not reverse a newer membership state. Disabled/removed rules stop granting roles and retain durable ownership records until cleanup succeeds. Shared activity roles across source channels remain assigned when switching.
+Voice activity-role grants are opt-in: **the four voice rules have empty role lists**. Playing Codenames must be explicitly configured later. Role changes reconcile promptly after voice/presence events and rule edits, and every thirty seconds by default against actual cached voice membership. The combined reconciler also retains any required presence contribution and ignores stale event channels, so duplicate/out-of-order notifications do not reverse a newer membership state. Disabled/removed rules stop granting roles and retain durable ownership records until cleanup succeeds. Shared activity roles across source channels remain assigned when switching.
 
 ### Permissions and role ownership
 
@@ -165,6 +165,14 @@ Run one bot instance per database/guild. A crash can lose the in-memory tail awa
 Connected assignment **and** removal events now use ordinary role logging with the configured route, regardless of voice logging enablement. A read-only preflight found Listening, Watching and Other Games all routed to `#annoyinglog` (`1556935145418919937`), while Connected was routed to Music log. The migration derives the target from those existing noisy-role routes (not a hardcoded destination), validates that they agree, and updates/adds only Connected's route. Other role routes stay unchanged. If existing noisy-role routes disagree or cannot be determined, migration fails atomically and requires administrator review; it does not guess.
 
 See [deployment and rollback instructions](docs/voice-logging-deployment.md). No deployment or live configuration changes are part of development.
+
+## Rich Presence activity roles
+
+Mr-Clean can centrally reconcile voice and Rich Presence triggers for the same role. It evaluates every reported Playing, Listening, Watching and Streaming activity, uses exact administrator-configured names (optionally restricted by application ID), and supports generic fallbacks. Shared roles remain until no active trigger requires them. PreMiD continues publishing to Discord; there is no direct browser-extension integration.
+
+Presence capture and per-guild role management are **disabled by default**. Four verified existing generic role IDs are seeded disabled; no dedicated game roles or named mappings are guessed. Manage Server/Administrator commands under `/activity` provide `track`, `edit`, `untrack`, `list`, `fallback`, `enable`, `inspect`, `adopt` and `confirm-empty`. Replies and diagnostics are ephemeral. Existing role-change logging handles role messages; there is no separate activity log.
+
+See [activity setup, API limitations and TuxedoMan cutover](docs/activity-roles.md) for exact commands, privileged intents, existing role IDs, ownership/adoption, conservative missing-presence handling and rollback. TuxedoMan and VC Roles are not changed during development.
 
 ## Slash commands
 
@@ -231,7 +239,8 @@ The database stores:
 - retention rules
 - role-logging configuration
 - per-role log routes
-- per-guild voice channel rules and activity role ownership
+- per-guild voice channel rules and shared activity role ownership
+- named presence rules, generic fallback settings and last required presence role IDs
 - persisted voice sessions and ordered delivery queue
 
 ## Building with Docker

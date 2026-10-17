@@ -1,3 +1,5 @@
+using MrClean.Services.Activities;
+using MrClean.Commands.Activities;
 using MrClean.Services.VoiceRules;
 using MrClean.Commands.Voice;
 using Discord;
@@ -21,6 +23,7 @@ var host = Host.CreateDefaultBuilder(args)
     .ConfigureAppConfiguration((context, builder) => { builder.AddEnvironmentVariables(); })
     .ConfigureServices((context, services) =>
     {
+        services.Configure<ActivityOptions>(context.Configuration.GetSection("ActivityRoles"));
         services.Configure<VoiceLoggingOptions>(context.Configuration.GetSection("VoiceLogging"));
         services.Configure<DiscordOptions>(context.Configuration.GetRequiredSection(DiscordOptions.Section));
 
@@ -49,6 +52,7 @@ var host = Host.CreateDefaultBuilder(args)
             .AddCommand<SetRoleLoggingCommand>()
             .AddCommand<TestNoisyRoleLogCleanupCommand>()
             .AddCommand<VoiceCommand>()
+            .AddCommand<ActivityCommand>()
         );
 
         services.AddTransient<MessageFilteringService>();
@@ -58,11 +62,17 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton(new DiscordSocketClient(new DiscordSocketConfig
         {
             AlwaysDownloadUsers = true,
-            GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildMembers | GatewayIntents.MessageContent,
+            GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.GuildMembers | GatewayIntents.MessageContent |
+                (context.Configuration.GetValue<bool>("ActivityRoles:ObservePresences") ? GatewayIntents.GuildPresences : GatewayIntents.None),
         }));
         services.AddSingleton<MessageRetentionScanner>();
         services.AddSingleton<IRoleLoggingService, RoleLoggingService>();
         services.AddSingleton<RoleChangeLogger>();
+        services.AddSingleton<PresenceSnapshotCache>();
+        services.AddSingleton<ActivityRulesService>();
+        services.AddSingleton<IActivityRoleCatalog, DiscordActivityRoleCatalog>();
+        services.AddSingleton<ActivityRoleResolver>();
+        services.AddHostedService<PresenceObserver>();
         services.AddSingleton<VoiceRulesService>();
         services.AddSingleton<IVoiceRoleGateway, DiscordVoiceRoleGateway>();
         services.AddSingleton<VoiceRoleReconciler>();

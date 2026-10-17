@@ -34,6 +34,18 @@ public class VoiceActivityMigrationTests
     }
 
     [Test]
+    public void PresenceMigrationOnlyAddsConfigurationAndDisabledVerifiedFallbacks()
+    {
+        using var db = new MrCleanDbContext(new DbContextOptionsBuilder<MrCleanDbContext>()
+            .UseNpgsql("Host=localhost;Database=unused;Username=unused").Options);
+        var sql = db.GetService<IMigrator>().GenerateScript("20261017130932_VoiceChannelRules", "20261017134212_PresenceActivityRules");
+        foreach (var id in new[] { "1069145493852131329", "1069145494674214973", "1069145496054153236", "1069145496985284648" })
+            Assert.That(sql, Does.Contain(id));
+        Assert.That(sql, Does.Contain("false").And.Not.Contain("UPDATE \"VoiceActivityStates\"").And.Not.Contain("DELETE FROM \"VoiceLogMessages\""));
+        Assert.That(sql, Does.Not.Contain("UPDATE \"RoleLogRoutes\""));
+    }
+
+    [Test]
     public void SnapshotMatchesRuntimeModel()
     {
         using var db = new MrCleanDbContext(new DbContextOptionsBuilder<MrCleanDbContext>()
