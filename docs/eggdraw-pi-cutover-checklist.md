@@ -161,7 +161,7 @@ docker inspect --format 'state={{.State.Status}} restarts={{.RestartCount}} erro
 
 Allow startup to complete and inspect the private log for both migrations, Connected/Ready, intended guild/avatar initialization, database and permission errors. Re-run Block C. Migrations must now include `20261017130932_VoiceChannelRules` and `20261017134212_PresenceActivityRules`. Do not run a separate migration container or `database update` against production. Failure means immediate Block G rollback, leaving TuxedoMan's permissions unchanged.
 
-Manual Discord actions (Manage Server/Administrator; responses are ephemeral):
+Manual Discord actions (Manage Server/Administrator). The currently deployed dacd084 replies ephemerally; the separately approved [visibility-only update](admin-command-visibility.md) makes settings/configuration confirmations public while keeping inspect private:
 
 ```text
 /activity enable enabled:false

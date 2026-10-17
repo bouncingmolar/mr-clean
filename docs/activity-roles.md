@@ -46,7 +46,7 @@ Required server permissions remain View Channel on sources and View Channel/Send
 
 ## Administrator commands
 
-All `/voice` and `/activity` commands require Manage Server or Administrator, verified server-side by both dispatcher and handler. They are guild-only, reject other guilds and reply ephemerally. Mr-Clean retains its existing single-configured-guild runtime model; database settings and ownership are guild-scoped.
+All `/voice` and `/activity` commands require Manage Server or Administrator, verified server-side by both dispatcher and handler. They are guild-only and reject other guilds. Settings lists and successful configuration/adoption confirmations are public in the channel where the command is invoked; use your bot-controls channel. Only `/activity inspect` remains ephemeral. Invalid/unauthorized requests have private details; public deferred errors use a generic notice. The replies suppress mention notifications. See [visibility and deployment notes](admin-command-visibility.md). Mr-Clean retains its existing single-configured-guild runtime model; database settings and ownership are guild-scoped.
 
 ```text
 /activity inspect member:@dr.tim
