@@ -10,6 +10,17 @@ public class MrCleanDbContext : DbContext
     {
     }
 
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<VoiceLogMessage>().Property(x => x.Id).ValueGeneratedNever();
+        modelBuilder.Entity<VoiceLogMessage>().HasIndex(x => x.Destination);
+    }
+
+    public virtual DbSet<VoiceLogMessage> VoiceLogMessages { get; set; }
+
+    public virtual DbSet<VoiceActivityState> VoiceActivityStates { get; set; }
+
     public virtual DbSet<MessageFilter> MessageFilters { get; set; }
 
     public virtual DbSet<MessageRetentionRule> MessageRetentionRules { get; set; }

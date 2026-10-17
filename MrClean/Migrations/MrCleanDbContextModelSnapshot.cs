@@ -22,6 +22,26 @@ namespace MrClean.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("MrClean.Models.VoiceLogMessage", b =>
+                {
+                    b.Property<long>("Id").HasColumnType("bigint");
+                    b.Property<decimal>("Destination").HasColumnType("numeric(20,0)");
+                    b.Property<string>("Text").IsRequired().HasColumnType("text");
+                    b.Property<DateTimeOffset?>("AttemptedAt").HasColumnType("timestamp with time zone");
+                    b.HasKey("Id");
+                    b.HasIndex("Destination");
+                    b.ToTable("VoiceLogMessages");
+                });
+
+            modelBuilder.Entity("MrClean.Models.VoiceActivityState", b =>
+                {
+                    b.Property<int>("Id").ValueGeneratedOnAdd().HasColumnType("integer");
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Json").IsRequired().HasColumnType("text");
+                    b.HasKey("Id");
+                    b.ToTable("VoiceActivityStates");
+                });
+
             modelBuilder.Entity("MrClean.Models.MessageFilter", b =>
                 {
                     b.Property<int>("Id")

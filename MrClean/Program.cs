@@ -19,6 +19,7 @@ var host = Host.CreateDefaultBuilder(args)
     .ConfigureAppConfiguration((context, builder) => { builder.AddEnvironmentVariables(); })
     .ConfigureServices((context, services) =>
     {
+        services.Configure<VoiceLoggingOptions>(context.Configuration.GetSection("VoiceLogging"));
         services.Configure<DiscordOptions>(context.Configuration.GetRequiredSection(DiscordOptions.Section));
 
         services.AddCommands(collection => collection

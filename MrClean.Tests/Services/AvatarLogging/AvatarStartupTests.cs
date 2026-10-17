@@ -24,7 +24,7 @@ public class AvatarStartupTests
 
         Assert.That(hostedServices, Is.EqualTo(new[]
         {
-            typeof(AvatarChangeLogger), typeof(DiscordBotService)
+            typeof(AvatarChangeLogger), typeof(MrClean.Services.VoiceLogging.VoiceActivityLogger), typeof(DiscordBotService)
         }));
     }
 
