@@ -128,9 +128,13 @@ public class VoiceRoleReconciler
             else foreach (var key in _echoes.Keys.Where(x => x.Guild == guild && x.User == user).ToArray()) _echoes.TryRemove(key, out _);
             var desired = rules.Where(x => _voiceEnabled && x.Enabled && x.ChannelId == member.ChannelId)
                 .SelectMany(x => x.RoleIds).ToHashSet();
+            var pausedPresenceRoles = new HashSet<ulong>();
             if (_activities != null && _presence != null)
             {
                 var (activityRules, fallbacks, enabled) = await _activities.GetAsync(guild, token);
+                if (!enabled || !_activityOptions.ObservePresences)
+                    pausedPresenceRoles.UnionWith(activityRules.Where(x => x.Enabled).Select(x => x.RoleId)
+                        .Concat(fallbacks.Where(x => x.Enabled).Select(x => x.RoleId)));
                 var previous = await db.ActivityMemberStates.FindAsync(new object[] { guild, user }, token);
                 var retained = previous == null ? new HashSet<ulong>() : JsonSerializer.Deserialize<ulong[]>(previous.RoleIdsJson)!.ToHashSet();
                 var observation = _presence.Get(guild, user);
@@ -161,6 +165,7 @@ public class VoiceRoleReconciler
             desired.Remove(_connected); desired.Remove(guild); desired.Remove(0);
             foreach (var claim in owned.Where(x => x.UserId == user).ToList())
             {
+                if (member.Present && pausedPresenceRoles.Contains(claim.RoleId)) continue; // Do not compete with the current presence manager, even via a voice binding.
                 if (claim.RoleId == _connected) continue; // Never touch VC Roles ownership.
                 var present = member.Roles.Contains(claim.RoleId);
                 if (!claim.Confirmed && present)
@@ -187,7 +192,7 @@ public class VoiceRoleReconciler
                 }
             }
             await db.SaveChangesAsync(token);
-            foreach (var role in desired.Where(x => !member.Roles.Contains(x) && !owned.Any(c => c.UserId == user && c.RoleId == x)))
+            foreach (var role in desired.Where(x => !pausedPresenceRoles.Contains(x) && !member.Roles.Contains(x) && !owned.Any(c => c.UserId == user && c.RoleId == x)))
             {
                 if (!await CanManageAsync(guild, user, role, token)) continue;
                 var claim = new VoiceRoleOwnership { GuildId = guild, UserId = user, RoleId = role };

@@ -41,17 +41,44 @@ public class ActivityMatchingTests
         cache.Invalidate(1); Assert.That(cache.Get(1, 2).Known, Is.False);
         Assert.That(cache.Get(1, 99).Known, Is.False);
     }
-    [Test] public void EmptySdkPresenceNeedsTwoFreshOnlineFramesSeparatedByGrace()
+    [Test] public void FirstFreshEmptyGatewayUpdateImmediatelyConfirmsInactivity()
     {
-        var cache = new PresenceSnapshotCache(); var at = DateTimeOffset.UtcNow;
-        cache.ObserveGateway(1, 2, Array.Empty<ReportedActivity>(), true, at);
-        Assert.That(cache.Get(1, 2).Known, Is.False);
-        cache.ObserveGateway(1, 2, Array.Empty<ReportedActivity>(), true, at.AddSeconds(1));
-        Assert.That(cache.Get(1, 2).Known, Is.False);
-        cache.ObserveGateway(1, 2, Array.Empty<ReportedActivity>(), true, at.AddSeconds(31));
+        var cache = new PresenceSnapshotCache();
+        cache.ObserveGateway(1, 2, new[] { new ReportedActivity("Codenames", ActivityType.Playing) });
+        cache.ObserveGateway(1, 2, Array.Empty<ReportedActivity>());
         Assert.That(cache.Get(1, 2).Known, Is.True);
-        cache.ObserveGateway(1, 2, Array.Empty<ReportedActivity>(), false, at.AddSeconds(50));
+        Assert.That(cache.Get(1, 2).Activities, Is.Empty);
+        cache.Invalidate(1);
         Assert.That(cache.Get(1, 2).Known, Is.False);
+        cache.SeedPositive(1, 2, Array.Empty<ReportedActivity>());
+        Assert.That(cache.Get(1, 2).Known, Is.False);
+        cache.ObserveGateway(1, 2, Array.Empty<ReportedActivity>());
+        Assert.That(cache.Get(1, 2).Known, Is.True);
+    }
+    [TestCase(UserStatus.Online)] [TestCase(UserStatus.Idle)]
+    [TestCase(UserStatus.DoNotDisturb)] [TestCase(UserStatus.Offline)] [TestCase(UserStatus.Invisible)]
+    public void FreshEmptyObserverUpdateIsAuthoritativeRegardlessOfStatusOrActiveClients(UserStatus status)
+    {
+        var cache = new PresenceSnapshotCache();
+        cache.ObserveGateway(1, 2, new[] { new ReportedActivity("Codenames", ActivityType.Playing) });
+        PresenceObserver.CaptureUpdate(cache, 1, 2, new EmptyPresence(status));
+        Assert.That(cache.Get(1, 2).Known, Is.True);
+        Assert.That(cache.Get(1, 2).Activities, Is.Empty);
+    }
+    private sealed class EmptyPresence : IPresence
+    {
+        public EmptyPresence(UserStatus status) => Status = status;
+        public UserStatus Status { get; }
+        public System.Collections.Generic.IReadOnlyCollection<ClientType> ActiveClients => Array.Empty<ClientType>();
+        public System.Collections.Generic.IReadOnlyCollection<IActivity> Activities => Array.Empty<IActivity>();
+    }
+    [Test] public void LateStartupCacheCannotResurrectAnActivityEndedByFreshUpdate()
+    {
+        var cache = new PresenceSnapshotCache();
+        cache.ObserveGateway(1, 2, Array.Empty<ReportedActivity>());
+        cache.SeedPositive(1, 2, new[] { new ReportedActivity("Codenames", ActivityType.Playing) });
+        Assert.That(cache.Get(1, 2).Known, Is.True);
+        Assert.That(cache.Get(1, 2).Activities, Is.Empty);
     }
     [Test] public void StartupPositiveCacheDoesNotClaimCompleteness()
     {

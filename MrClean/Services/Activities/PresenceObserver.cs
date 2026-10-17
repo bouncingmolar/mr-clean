@@ -27,14 +27,19 @@ public class PresenceObserver : IHostedService
     }
     private Task UpdatedAsync(SocketUser user, SocketPresence before, SocketPresence after)
     {
+        if (user is SocketGuildUser source && source.Guild.Id != _guild) return Task.CompletedTask;
         var guild = _client.GetGuild(_guild); var current = guild?.GetUser(user.Id);
         if (user.IsBot || current == null || guild?.IsConnected != true || _client.ConnectionState != ConnectionState.Connected) return Task.CompletedTask;
         var observed = Copy(after.Activities);
         if (!observed.SequenceEqual(Copy(current.Activities))) return Task.CompletedTask; // Ignore delayed notifications superseded in the SDK cache.
-        _cache.ObserveGateway(_guild, user.Id, observed,
-            (after.Status is UserStatus.Online or UserStatus.Idle or UserStatus.DoNotDisturb) && after.ActiveClients.Count > 0, DateTimeOffset.UtcNow);
+        // Offline and an empty client_status are not connection failures. A fresh event's
+        // empty activities list authoritatively ends activities, regardless of online status.
+        CaptureUpdate(_cache, _guild, user.Id, after);
         return Task.CompletedTask;
     }
+    // Kept separate from cache seeding so cached empty presence cannot accidentally clear roles.
+    public static void CaptureUpdate(PresenceSnapshotCache cache, ulong guild, ulong user, IPresence after)
+        => cache.ObserveGateway(guild, user, Copy(after.Activities));
     public static ReportedActivity[] Copy(IEnumerable<IActivity> values) => values.Select(x =>
         new ReportedActivity(x.Name, x.Type, x is RichGame rich ? rich.ApplicationId : null)).ToArray();
     private Task DisconnectedAsync(Exception ex) { _cache.Invalidate(_guild); return Task.CompletedTask; }

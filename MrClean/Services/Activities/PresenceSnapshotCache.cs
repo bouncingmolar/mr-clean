@@ -5,7 +5,6 @@ public class PresenceSnapshotCache
     private readonly object _gate = new();
     private readonly Dictionary<(ulong Guild, ulong User), ActivitySnapshot> _latest = new();
     private long _revision;
-    private readonly Dictionary<(ulong Guild, ulong User), DateTimeOffset> _emptySince = new();
     public event Action<ulong, ulong>? Changed;
     public ActivitySnapshot Get(ulong guild, ulong user)
     {
@@ -32,24 +31,11 @@ public class PresenceSnapshotCache
         }
         Changed?.Invoke(guild, user);
     }
-    public void ObserveGateway(ulong guild, ulong user, IEnumerable<ReportedActivity> activities, bool available, DateTimeOffset at)
-    {
-        var values = activities.ToArray();
-        var confirmed = false;
-        lock (_gate)
-        {
-            if (available && values.Length == 0)
-            {
-                // SocketPresence conflates absent and empty arrays. Require a second fresh online frame,
-                // separated by a grace period; elapsed cache time alone never clears contributions.
-                if (_emptySince.TryGetValue((guild, user), out var since)) confirmed = at - since >= TimeSpan.FromSeconds(30);
-                else _emptySince[(guild, user)] = at;
-            }
-            else _emptySince.Remove((guild, user));
-        }
-        if (available && (values.Length > 0 || confirmed)) Observe(guild, user, values);
-        else InvalidateMember(guild, user);
-    }
+    // Only call for a fresh PresenceUpdated event while the guild/gateway is available.
+    // Discord specifies activities as the current list, including [] on activity termination.
+    // Startup caches and unavailable connections have different provenance: invalidate/seed them instead.
+    public void ObserveGateway(ulong guild, ulong user, IEnumerable<ReportedActivity> activities)
+        => Observe(guild, user, activities);
     public void InvalidateMember(ulong guild, ulong user)
     {
         lock (_gate) _latest[(guild, user)] = new ActivitySnapshot(false, ++_revision, Array.Empty<ReportedActivity>());
@@ -57,7 +43,7 @@ public class PresenceSnapshotCache
     }
     public void Forget(ulong guild, ulong user)
     {
-        lock (_gate) { _latest.Remove((guild, user)); _emptySince.Remove((guild, user)); }
+        lock (_gate) _latest.Remove((guild, user));
         Changed?.Invoke(guild, user);
     }
     public void Invalidate(ulong guild)
@@ -66,7 +52,6 @@ public class PresenceSnapshotCache
         lock (_gate)
         {
             users = _latest.Keys.Where(x => x.Guild == guild).Select(x => x.User).ToArray();
-            foreach (var key in _emptySince.Keys.Where(x => x.Guild == guild).ToArray()) _emptySince.Remove(key);
             foreach (var user in users) _latest[(guild, user)] = new ActivitySnapshot(false, ++_revision, Array.Empty<ReportedActivity>());
         }
         foreach (var user in users) Changed?.Invoke(guild, user);
