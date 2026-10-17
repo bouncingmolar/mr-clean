@@ -36,8 +36,8 @@ public class VoiceActivityLogger : BackgroundService
         if (_options.Enabled)
         {
             if (_options.LogChannelId == 0 || _options.ReconnectWindowSeconds < 0 ||
-                _options.Channels.Any(x => x.Key == 0 || string.IsNullOrWhiteSpace(x.Value)) ||
-                _options.ChannelLogDestinations.Any(x => x.Key == 0 || x.Value == 0))
+                _options.Channels.Any(x => (!ulong.TryParse(x.Key, out var id) || id == 0) || string.IsNullOrWhiteSpace(x.Value)) ||
+                _options.ChannelLogDestinations.Any(x => (!ulong.TryParse(x.Key, out var id) || id == 0) || x.Value == 0))
                 throw new InvalidOperationException("Invalid VoiceLogging configuration.");
             _client.Ready += ReadyAsync;
             _client.GuildAvailable += GuildAvailableAsync;

@@ -156,9 +156,9 @@ public class VoiceActivityTrackerTests
     [Test] public void RoutingUsesSourceIdsAndGeneralRenameDoesNotRouteToGames()
     {
         var options = new VoiceLoggingOptions { GeneralChannelId = 10, LogChannelId = 806802061693550652 };
-        options.Channels.Add(11, "Music"); options.Channels.Add(12, "Codenames");
-        options.ChannelLogDestinations.Add(11, 943558876706533477);
-        options.ChannelLogDestinations.Add(12, 1556935771049689119);
+        options.Channels.Add("11", "Music"); options.Channels.Add("12", "Codenames");
+        options.ChannelLogDestinations.Add("11", 943558876706533477);
+        options.ChannelLogDestinations.Add("12", 1556935771049689119);
         Assert.That(options.Activity(10, "Among Us"), Is.EqualTo("Among Us"));
         Assert.That(options.Destination(10), Is.EqualTo(806802061693550652UL));
         Assert.That(options.Destination(11), Is.EqualTo(943558876706533477UL));
@@ -169,7 +169,7 @@ public class VoiceActivityTrackerTests
     [Test] public void ChannelConfigurationUsesIdsAndGeneralChannelName()
     {
         var options = new VoiceLoggingOptions { GeneralChannelId = 10 };
-        options.Channels.Add(11, "Codenames");
+        options.Channels.Add("11", "Codenames");
         Assert.That(options.Activity(10, "Lethal Company"), Is.EqualTo("Lethal Company"));
         Assert.That(options.Activity(11, "Renamed"), Is.EqualTo("Codenames"));
         Assert.That(options.Activity(12, "Codenames"), Is.Null);

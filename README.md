@@ -105,39 +105,38 @@ The logger subscribes before the Discord connection starts and waits for a full 
 
 Voice logging observes activity only. It does not replace VC Roles, assign/remove roles, rename channels or change permissions. Existing role-change logging continues independently, including changes made by VC Roles. Avatar logging and moderation remain enabled as before.
 
-The feature is disabled by default. Supply the **source voice channel IDs** before enabling it. The following example uses symbolic source IDs: replace every `SOURCE_...` value/key with its numeric Discord voice channel ID before using this configuration. The three destination IDs are real **text channel IDs**, never source voice IDs.
+The server mapping below is configured in `MrClean/appsettings.json`. Voice logging remains **disabled**; enabling it for a controlled test is a separate deployment step. All IDs are public configuration, and bot tokens/database credentials remain outside Git.
 
 ```json
 "VoiceLogging": {
   "Enabled": false,
   "LogChannelId": 806802061693550652,
-  "GeneralChannelId": "SOURCE_GENERAL_VOICE_ID",
+  "GeneralChannelId": 798528429091061780,
   "ReconnectWindowSeconds": 120,
   "Channels": {
-    "SOURCE_MUSIC_ID": "Music",
-    "SOURCE_GARTIC_PHONE_ID": "Gartic Phone",
-    "SOURCE_CODENAMES_ID": "Codenames",
-    "SOURCE_OTHER_VOICE_CHAT_ID": "Voice chat"
+    "792285032713945119": "Music",
+    "1126920146099912744": "Gartic Phone",
+    "1126902663607484476": "Codenames"
   },
   "ChannelLogDestinations": {
-    "SOURCE_GENERAL_VOICE_ID": 806802061693550652,
-    "SOURCE_MUSIC_ID": 943558876706533477,
-    "SOURCE_GARTIC_PHONE_ID": 1556935771049689119,
-    "SOURCE_CODENAMES_ID": 1556935771049689119,
-    "SOURCE_OTHER_VOICE_CHAT_ID": 806802061693550652
+    "798528429091061780": 806802061693550652,
+    "792285032713945119": 943558876706533477,
+    "1126920146099912744": 1556935771049689119,
+    "1126902663607484476": 1556935771049689119
   }
 }
 ```
 
-Use the intended guild (`Discord__GuildId=683633975838769192` in the current local configuration). Development appsettings target a different guild; explicitly set the guild/environment when deploying. Existing bot-token and PostgreSQL connection settings are reused.
+Use `Discord__GuildId=683633975838769192`. Development appsettings target a different guild; explicitly set the intended guild/environment when deploying. Existing bot-token and PostgreSQL connection settings are reused.
 
-| Destination | Text channel ID | Source channels to configure |
+| Source voice channel ID | Activity label | Destination text channel ID |
 | --- | --- | --- |
-| Music log | `943558876706533477` | Each music voice channel, with its fixed label |
-| Fun games log | `1556935771049689119` | Gartic Phone, Codenames and each other game-specific voice channel |
-| General voice log | `806802061693550652` | General renameable Voice; other ordinary voice channels if desired |
+| `798528429091061780` | Current channel name on departure | `806802061693550652` |
+| `792285032713945119` | Music | `943558876706533477` |
+| `1126920146099912744` | Gartic Phone | `1556935771049689119` |
+| `1126902663607484476` | Codenames | `1556935771049689119` |
 
-`Channels` retains the existing ID-to-fixed-label configuration. `ChannelLogDestinations` adds optional destination overrides keyed by **source voice channel ID**; `LogChannelId` remains the fallback. The general channel is tracked automatically through `GeneralChannelId`. A routing override alone does not enable tracking for other channels: add them to `Channels` too. Duplicate the music/game entries for every additional source voice channel. No IDs for source voice channels have been supplied yet; do not enable the placeholder example.
+`Channels` retains the ID-to-fixed-label configuration. `ChannelLogDestinations` adds destination overrides keyed by **source voice channel ID**; `LogChannelId` remains the fallback. The general channel is tracked automatically through `GeneralChannelId`. A routing override alone does not enable tracking for other channels: add them to `Channels` too.
 
 General Voice always routes by its ID, including while named Among Us or Lethal Company. Initial join logs use its name when the event is captured; departures use its current name at departure observation, never a later delivery-time rename. Recovery departures use the name observed during reconciliation. If the channel is missing, the stored activity is the fallback. Other channels always use their fixed labels. Earlier join logs are never edited. Active sessions retain their original destination across reconnects and configuration changes; new sessions use the updated route. Bots and mute/deafen changes are ignored.
 
@@ -152,6 +151,8 @@ Each message has a short `[vc:N]` reference, unique within this bot database. Be
 Confirmed connections are checkpointed every 10 seconds. After restart or gateway reconnection, persisted connections end at their last confirmed checkpoint with an explicit observation-gap note, then observed occupants are reconciled. A gap within the grace window continues the session; otherwise a new session starts. Unobserved time is excluded, so some real connected time before an outage may be omitted. Disconnected sessions expire after the grace window. Members already present when tracking begins start at observation time.
 
 Run **one bot instance per database/guild**. Normal shutdown drains captured observations into PostgreSQL within the host shutdown deadline; unsent outbox rows remain for the next start. Captured observations awaiting a database commit are in memory: a process crash can lose that tail, and a sustained database outage can grow the queue. Restart recovery reports the resulting uncertainty instead of reconstructing unknown events. Keep voice logging enabled until pending messages have drained. No live Discord/PostgreSQL recovery exercise has been performed yet; validate joins, switches, reconnects, renamed Voice departures and history permissions during a controlled deployment.
+
+Deployment preparation, the controlled test and rollback are described in [the deployment plan](docs/voice-logging-deployment.md).
 
 ## Slash commands
 

@@ -1,0 +1,13 @@
+.git
+**/bin
+**/obj
+.env
+.env.*
+**/.env
+**/.env.*
+**/appsettings.Production.json
+.agents
+.codex
+.aws
+.idea
+.vscode
