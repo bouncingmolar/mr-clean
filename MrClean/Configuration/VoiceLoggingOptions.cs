@@ -2,6 +2,7 @@ namespace MrClean.Configuration;
 
 public class VoiceLoggingOptions
 {
+    public ulong ConnectedRoleId { get; set; }
     public bool Enabled { get; set; }
     public ulong LogChannelId { get; set; }
     public ulong GeneralChannelId { get; set; }

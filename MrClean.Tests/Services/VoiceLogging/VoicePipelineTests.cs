@@ -37,8 +37,8 @@ public class VoicePipelineTests
         await finished.Task.WaitAsync(stop.Token);
         Assert.That(state.Sessions.Single().ConnectedSeconds, Is.EqualTo(120));
         Assert.That(state.Sessions.Single().Interruptions, Is.EqualTo(1));
-        Assert.That(state.Pending[1].Text, Does.StartWith($"<t:{Start.AddSeconds(60).ToUnixTimeSeconds()}:T>"));
-        Assert.That(state.Pending[2].Text, Does.Contain("same session").And.Contain("2m 0s excluded"));
+        Assert.That(state.Pending[1].Text, Does.Contain("Connected for 1 minute."));
+        Assert.That(state.Pending[2].Text, Is.EqualTo("🔊 <@1> joined <#10>"));
         stop.Cancel();
         Assert.ThrowsAsync<OperationCanceledException>(async () => await processing);
     }
@@ -67,8 +67,8 @@ public class VoicePipelineTests
         await captured.Task.WaitAsync(stop.Token);
         Assert.That(delivery.IsCompleted, Is.False);
         Assert.That(state.Pending.Select(x => x.Destination), Is.EqualTo(new ulong[] { 100, 100, 200, 200, 200 }));
-        Assert.That(state.Pending[1].Text, Does.Contain("left Music"));
-        Assert.That(state.Pending[2].Text, Does.Contain("joined Codenames"));
+        Assert.That(state.Pending[1].Text, Does.Contain("left <#10> (Music)"));
+        Assert.That(state.Pending[2].Text, Is.EqualTo("🔊 <@1> joined <#11>"));
         Assert.That(state.Sessions.Single().ConnectedSeconds, Is.EqualTo(1));
         release.SetResult(true); await delivery;
         stop.Cancel();
@@ -97,7 +97,7 @@ public class VoicePipelineTests
         state.Pending.Add(new VoiceLog(100, "identical"));
         var commit = VoiceStateCommit.Prepare(state);
         Assert.That(commit.Logs.Select(x => x.Id), Is.EqualTo(new long[] { 1, 2 }));
-        Assert.That(commit.Logs[0].Text, Is.Not.EqualTo(commit.Logs[1].Text));
+        Assert.That(commit.Logs[0].Text, Is.EqualTo(commit.Logs[1].Text), "Identity is persisted separately, never appended to visible messages.");
         var restored = System.Text.Json.JsonSerializer.Deserialize<VoiceActivityTracker>(commit.Json)!;
         Assert.That(restored.Pending, Is.Empty);
         restored.Pending.Add(new VoiceLog(200, "next"));

@@ -14,7 +14,7 @@ public class VoiceSession
     public int Interruptions { get; set; }
 }
 
-public record VoiceLog(ulong Destination, string Text);
+public record VoiceLog(ulong Destination, string Text, bool EmbedOnly = false);
 
 public class VoiceActivityTracker
 {
@@ -22,8 +22,8 @@ public class VoiceActivityTracker
     public List<VoiceSession> Sessions { get; set; } = new();
     public List<VoiceLog> Pending { get; set; } = new();
 
-    private void Log(ulong destination, DateTimeOffset now, string text) =>
-        Pending.Add(new VoiceLog(destination, $"<t:{now.ToUnixTimeSeconds()}:T> {text}"));
+    private void Join(ulong destination, ulong user, ulong channel) =>
+        Pending.Add(new VoiceLog(destination, $"🔊 <@{user}> joined <#{channel}>"));
 
     public void Transition(ulong user, ulong? channel, string? activity, DateTimeOffset now,
         TimeSpan window, ulong destination, bool uncertain = false, Func<ulong, string?>? activityAtEnd = null)
@@ -36,8 +36,10 @@ public class VoiceActivityTracker
             session.ConnectedSeconds += Math.Max(0, (end - session.ConnectedSince.Value).TotalSeconds);
             session.ConnectedSince = null;
             session.Disconnected = end;
-            Log(session.Destination == 0 ? destination : session.Destination, now, $"<@{user}> left {Safe(activityAtEnd?.Invoke(session.ChannelId) ?? session.Activity)} (<#{session.ChannelId}>); connected {Duration(session.ConnectedSeconds)} total since <t:{session.Started.ToUnixTimeSeconds()}:F>; {session.Interruptions} brief interruption(s)." +
-                (uncertain ? " Observation gap: connection ended at the last confirmed checkpoint; actual departure unknown." : ""));
+            var label = Safe(activityAtEnd?.Invoke(session.ChannelId) ?? session.Activity);
+            Pending.Add(new VoiceLog(session.Destination == 0 ? destination : session.Destination,
+                $"<@{user}> left <#{session.ChannelId}> ({label})\nConnected for {Duration(session.ConnectedSeconds)}.\n{session.Interruptions} brief interruption{(session.Interruptions == 1 ? "" : "s")}." +
+                (uncertain ? "\nConnection during the observation gap is unknown; only confirmed time is counted." : ""), true));
         }
         if (channel == null || activity == null) return;
         if (session != null && session.ChannelId == channel && now - session.Disconnected <= window)
@@ -45,14 +47,14 @@ public class VoiceActivityTracker
             session.Interruptions++;
             session.ConnectedSince = now;
             session.LastObserved = now;
-            Log(session.Destination == 0 ? destination : session.Destination, now, $"<@{user}> rejoined {Safe(session.Activity)} (<#{channel}>); same session, interruption {Duration((now - session.Disconnected!.Value).TotalSeconds)} excluded.");
+            Join(session.Destination == 0 ? destination : session.Destination, user, channel.Value);
             session.Disconnected = null;
             return;
         }
         if (session != null) Sessions.Remove(session);
         Sessions.Add(new VoiceSession { UserId = user, ChannelId = channel.Value, Activity = activity, Destination = destination,
             Started = now, ConnectedSince = now, LastObserved = now });
-        Log(destination, now, $"<@{user}> joined {Safe(activity)} (<#{channel}>).");
+        Join(destination, user, channel.Value);
     }
 
     public void Checkpoint(DateTimeOffset now, TimeSpan window)
@@ -62,5 +64,12 @@ public class VoiceActivityTracker
     }
 
     private static string Safe(string value) => new(value.Where(c => !char.IsControl(c)).Take(100).Select(c => c is '`' or '@' or '*' or '_' or '~' or '<' or '>' ? ' ' : c).ToArray());
-    private static string Duration(double seconds) => $"{(long)seconds / 3600}h {(long)seconds / 60 % 60}m {(long)seconds % 60}s";
+    internal static string Duration(double seconds)
+    {
+        var total = (long)Math.Max(0, seconds);
+        var parts = new List<string>();
+        void Part(long value, string unit) { if (value > 0) parts.Add($"{value} {unit}{(value == 1 ? "" : "s")}"); }
+        Part(total / 3600, "hour"); Part(total / 60 % 60, "minute"); Part(total % 60, "second");
+        return parts.Count == 0 ? "0 seconds" : string.Join(", ", parts);
+    }
 }

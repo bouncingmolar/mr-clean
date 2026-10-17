@@ -214,15 +214,25 @@ public class VoiceActivityLogger : BackgroundService
             if (log == null) return;
             var channel = _client.GetGuild(_guildId)?.GetTextChannel(log.Destination)
                 ?? throw new InvalidOperationException($"Voice log channel {log.Destination} unavailable.");
+            var payload = VoiceMessagePayload.Parse(log.Text);
             await VoiceLogDelivery.DeliverAsync(log,
                 async () =>
                 {
                     var recent = await channel.GetMessagesAsync(100, options: new RequestOptions { CancelToken = token }).FlattenAsync();
-                    return recent.Any(x => x.Author.Id == _client.CurrentUser.Id && x.Content == log.Text &&
+                    return recent.Any(x => x.Author.Id == _client.CurrentUser.Id && payload.Matches(x.Id, x.Content, x.Embeds.Select(e => e.Description)) &&
                         x.CreatedAt >= log.AttemptedAt!.Value.AddSeconds(-1));
                 },
-                () => db.SaveChangesAsync(token),
-                async () => { await channel.SendMessageAsync(log.Text, allowedMentions: AllowedMentions.None,
+                async () =>
+                {
+                    if (payload.HistoryBaseline == null && log.Text.StartsWith("voice:v2:", StringComparison.Ordinal))
+                    {
+                        var previous = await channel.GetMessagesAsync(1, options: new RequestOptions { CancelToken = token }).FlattenAsync();
+                        payload.HistoryBaseline = previous.Select(x => x.Id).DefaultIfEmpty(0UL).Max();
+                        log.Text = payload.Serialize();
+                    }
+                    await db.SaveChangesAsync(token);
+                },
+                async () => { await channel.SendMessageAsync(payload.Content, embed: payload.BuildEmbed(), allowedMentions: AllowedMentions.None,
                     options: new RequestOptions { CancelToken = token }); },
                 async () => { db.Remove(log); await db.SaveChangesAsync(token); WakeDelivery(); });
         }

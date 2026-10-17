@@ -15,6 +15,7 @@ public class VoiceServerConfigurationTests
         var options = configuration.GetSection("VoiceLogging").Get<VoiceLoggingOptions>();
         Assert.That(configuration.GetValue<ulong>("Discord:GuildId"), Is.EqualTo(683633975838769192UL));
         Assert.That(options.Enabled, Is.False);
+        Assert.That(options.ConnectedRoleId, Is.EqualTo(894787914599370803UL));
         Assert.That(options.GeneralChannelId, Is.EqualTo(798528429091061780UL));
         Assert.That(options.ReconnectWindowSeconds, Is.EqualTo(120));
         Assert.That(options.LogChannelId, Is.EqualTo(806802061693550652UL));

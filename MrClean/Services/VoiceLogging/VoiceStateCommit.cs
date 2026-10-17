@@ -10,8 +10,8 @@ public record VoiceStateCommit(string Json, VoiceLogMessage[] Logs)
         var logs = state.Pending.Select(log =>
         {
             var id = ++state.LastLogId;
-            // Stable visible reference distinguishes otherwise identical rapid events during retry reconciliation.
-            return new VoiceLogMessage { Id = id, Destination = log.Destination, Text = $"{log.Text} [vc:{id}]" };
+            // Presentation and retry metadata live in the existing text column; legacy rows remain readable.
+            return new VoiceLogMessage { Id = id, Destination = log.Destination, Text = new VoiceMessagePayload { Content = log.EmbedOnly ? null : log.Text, Description = log.EmbedOnly ? log.Text : null }.Serialize() };
         }).ToArray();
         state.Pending.Clear();
         return new VoiceStateCommit(JsonSerializer.Serialize(state), logs);

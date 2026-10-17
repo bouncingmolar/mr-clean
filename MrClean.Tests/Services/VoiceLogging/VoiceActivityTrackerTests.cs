@@ -23,7 +23,11 @@ public class VoiceActivityTrackerTests
         Move(65);
         Assert.That(_tracker.Pending.Count, Is.EqualTo(2));
         Assert.That(_tracker.Pending[0], Is.EqualTo(original));
-        Assert.That(_tracker.Pending[1].Text, Does.Contain("Among Us").And.Contain("0h 1m 5s"));
+        Assert.That(original.Text, Is.EqualTo("🔊 <@1> joined <#10>"));
+        Assert.That(original.EmbedOnly, Is.False);
+        Assert.That(_tracker.Pending[1].EmbedOnly, Is.True);
+        Assert.That(_tracker.Pending[1].Text, Does.Contain("0 brief interruptions.").And.Not.Contain("<t:"));
+        Assert.That(_tracker.Pending[1].Text, Does.Contain("Among Us").And.Contain("1 minute, 5 seconds"));
     }
 
     [Test] public void ReconnectPreservesActivityAndExcludesGap()
@@ -34,7 +38,8 @@ public class VoiceActivityTrackerTests
         Assert.That(session.Activity, Is.EqualTo("Among Us"));
         Assert.That(session.ConnectedSeconds, Is.EqualTo(120));
         Assert.That(session.Interruptions, Is.EqualTo(1));
-        Assert.That(_tracker.Pending[2].Text, Does.Contain("30s excluded"));
+        Assert.That(_tracker.Pending.Last().Text, Does.Contain("Connected for 2 minutes.").And.Contain("1 brief interruption."));
+        Assert.That(_tracker.Pending[2].Text, Is.EqualTo("🔊 <@1> joined <#10>"));
     }
 
     [TestCase(180, true)] [TestCase(181, false)]
@@ -47,8 +52,8 @@ public class VoiceActivityTrackerTests
     [Test] public void SwitchEndsOldActivityBeforeJoiningNewActivity()
     {
         Move(0, 10, "A"); Move(20, 11, "B");
-        Assert.That(_tracker.Pending[1].Text, Does.Contain("left A"));
-        Assert.That(_tracker.Pending[2].Text, Does.Contain("joined B"));
+        Assert.That(_tracker.Pending[1].Text, Does.Contain("left <#10> (A)"));
+        Assert.That(_tracker.Pending[2].Text, Is.EqualTo("🔊 <@1> joined <#11>"));
         Assert.That(_tracker.Sessions.Single().ConnectedSeconds, Is.Zero);
     }
 
@@ -65,8 +70,8 @@ public class VoiceActivityTrackerTests
         _tracker = JsonSerializer.Deserialize<VoiceActivityTracker>(JsonSerializer.Serialize(_tracker))!;
         Move(60, uncertain: true); Move(60, 10, "B"); Move(90);
         Assert.That(_tracker.Sessions.Single().ConnectedSeconds, Is.EqualTo(60));
-        Assert.That(_tracker.Pending[1].Text, Does.Contain("actual departure unknown"));
-        Assert.That(_tracker.Pending[2].Text, Does.Contain("same session"));
+        Assert.That(_tracker.Pending[1].Text, Does.Contain("observation gap"));
+        Assert.That(_tracker.Pending[2].Text, Is.EqualTo("🔊 <@1> joined <#10>"));
     }
 
     [Test] public void StaleDisconnectedSessionsExpireButConnectedSessionsStay()
@@ -84,7 +89,7 @@ public class VoiceActivityTrackerTests
         Move(0, 10, "A");
         _tracker.Checkpoint(_start.AddSeconds(30), TimeSpan.FromSeconds(120));
         Move(300, uncertain: true); Move(300, 10, "B");
-        Assert.That(_tracker.Pending[1].Text, Does.Contain("0h 0m 30s"));
+        Assert.That(_tracker.Pending[1].Text, Does.Contain("30 seconds"));
         Assert.That(_tracker.Sessions.Single().Activity, Is.EqualTo("B"));
         Assert.That(_tracker.Sessions.Single().Started, Is.EqualTo(_start.AddSeconds(300)));
     }
@@ -112,7 +117,7 @@ public class VoiceActivityTrackerTests
             _tracker.Transition(user, null, null, _start.AddSeconds(60), TimeSpan.FromSeconds(120), 99,
                 activityAtEnd: id => id == 10 ? "Among Us" : null);
         Assert.That(_tracker.Pending.Take(2), Is.EqualTo(joins));
-        Assert.That(_tracker.Pending.Skip(2).All(x => x.Text.Contains("left Among Us")), Is.True);
+        Assert.That(_tracker.Pending.Skip(2).All(x => x.Text.Contains("left <#10> (Among Us)")), Is.True);
     }
 
     [Test] public void SwitchResolvesDepartingChannelAndPreservesFixedDestinationLabel()
@@ -122,9 +127,9 @@ public class VoiceActivityTrackerTests
             activityAtEnd: id => id == 10 ? "Among Us" : null);
         _tracker.Transition(1, null, null, _start.AddSeconds(90), TimeSpan.FromSeconds(120), 99,
             activityAtEnd: id => id == 10 ? "Renamed again" : null);
-        Assert.That(_tracker.Pending[1].Text, Does.Contain("left Among Us"));
-        Assert.That(_tracker.Pending[2].Text, Does.Contain("joined Codenames"));
-        Assert.That(_tracker.Pending[3].Text, Does.Contain("left Codenames"));
+        Assert.That(_tracker.Pending[1].Text, Does.Contain("left <#10> (Among Us)"));
+        Assert.That(_tracker.Pending[2].Text, Is.EqualTo("🔊 <@1> joined <#11>"));
+        Assert.That(_tracker.Pending[3].Text, Does.Contain("left <#11> (Codenames)"));
     }
 
     [Test] public void RestartRecoveryUsesCurrentGeneralChannelName()
@@ -133,7 +138,7 @@ public class VoiceActivityTrackerTests
         _tracker = JsonSerializer.Deserialize<VoiceActivityTracker>(JsonSerializer.Serialize(_tracker))!;
         _tracker.Transition(1, null, null, _start.AddSeconds(60), TimeSpan.FromSeconds(120), 99,
             uncertain: true, activityAtEnd: _ => "Lethal Company");
-        Assert.That(_tracker.Pending[1].Text, Does.Contain("left Lethal Company"));
+        Assert.That(_tracker.Pending[1].Text, Does.Contain("left <#10> (Lethal Company)"));
     }
 
     [Test] public void MissingChannelFallsBackToStoredActivity()
@@ -141,7 +146,7 @@ public class VoiceActivityTrackerTests
         Move(0, 10, "Voice");
         _tracker.Transition(1, null, null, _start.AddSeconds(60), TimeSpan.FromSeconds(120), 99,
             activityAtEnd: _ => null);
-        Assert.That(_tracker.Pending[1].Text, Does.Contain("left Voice"));
+        Assert.That(_tracker.Pending[1].Text, Does.Contain("left <#10> (Voice)"));
     }
 
     [Test] public void SessionDestinationSurvivesReconnectConfigurationChangeAndRestart()
