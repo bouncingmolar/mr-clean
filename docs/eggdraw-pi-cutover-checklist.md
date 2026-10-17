@@ -32,9 +32,9 @@ Its current member roles are:
 | Existing automation role | Verified ID | State/configuration still needed |
 | --- | --- | --- |
 | Other Games | `1069145493852131329` | 15 current holders including any bots; enable Playing fallback as intended, review human adoption scope. |
-| Listening | `1069145494674214973` | 2 holders; recover TuxedoMan enable flag. |
-| Watching | `1069145496054153236` | 7 holders including bots; recover enable flag; bulk adoption excludes bots. |
-| Streaming | `1069145496985284648` | 4 holders; recover enable flag and existing/default route. |
+| Listening | `1069145494674214973` | 2 holders at the original audit; approved enabled. |
+| Watching | `1069145496054153236` | 7 holders at the original audit including bots; approved enabled; bulk adoption excludes bots. |
+| Streaming | `1069145496985284648` | 4 holders at the original audit; approved enabled; preserve existing/default route. |
 
 The administrator supplied the following **actual `tx roles` export**. All seven role IDs were independently verified with a Discord guild-roles GET on 18 October 2026; each name has exactly one match, each role is non-managed with zero permissions. These tracked-game mappings use Playing, matching TuxedoMan's named-game handling. Activity names come from the export, not from role-name inference. Reuse these IDs without creating, renaming or replacing roles.
 
@@ -48,15 +48,15 @@ The administrator supplied the following **actual `tx roles` export**. All seven
 | Playing Gartic Phone | `1069579310022807672` | `Gartic` | Playing |
 | A Mong Goose | `1073952995357753354` | `Among Us` | Playing |
 
-**Codenames decision is settled:** create a dedicated `Playing Codenames` role during the approved window, once `/activity inspect` confirms the exact PreMiD name/type. No such role currently exists; its ID is not available until creation. Bind that same new ID to presence and Codenames voice source `1126902663607484476`. Never reuse/adopt the 37-holder community `codenames` role `963037960230551582`. Creation is planned, not performed. If a suitable dedicated role has appeared before deployment, inspect and safely reuse it rather than create a duplicate.
+**Codenames decision is settled:** create a dedicated `Playing Codenames` role during the approved window, using the live-confirmed activity `Codenames`, type Playing, application ID `817859401477259315`. No such role currently exists; its ID is not available until creation. Bind that same new ID to presence and Codenames voice source `1126902663607484476`. Never reuse/adopt the 37-holder community `codenames` role `963037960230551582`. Creation is planned, not performed. If a suitable dedicated role has appeared before deployment, inspect and safely reuse it rather than create a duplicate.
 
-Existing Other Games/Listening/Watching role routes are Annoyinglog **`1556935145418919937`**. Connected currently routes to Music and is suppressed by old bee7e73; the pending voice migration derives the common Annoyinglog route and restores its logging. Existing named-role routes retain their current configuration; do not infer a route from a similar role name. The seven named mappings are now established by the administrator's export. No private TuxedoMan database was accessed, and generic category enable flags/event-role settings still require confirmation.
+Existing Other Games/Listening/Watching role routes are Annoyinglog **`1556935145418919937`**. Connected currently routes to Music and is suppressed by old bee7e73; the pending voice migration derives the common Annoyinglog route and restores its logging. Existing named-role routes retain their current configuration; do not infer a route from a similar role name. The seven named mappings are now established by the administrator's export. No private TuxedoMan database was accessed, and all four generic categories are approved enabled, and scheduled-event automation is confirmed unused.
 
 ### Manual discovery required before final approval
 
-The named-game export is now supplied and recorded above; do not rediscover/guess those seven names. The seven supplied entries are the named-game transfer set; any later additions must be explicitly documented. Generic flags and event-role settings are not part of `tx roles`. Obtain those through a non-mutating settings display or the bot operator. Do not toggle `settings`, run `setup`, `track` or `untrack` just to inspect: those mutate configuration, can create roles, or reconcile members. Preserve the supplied export, category flags and reviewed human holder/adoption lists privately for rollback.
+The named-game export is now supplied and recorded above; do not rediscover/guess those seven names. The seven supplied entries are the named-game transfer set; any later additions must be explicitly documented. The operator has confirmed all four generic categories enabled and scheduled-event automation unused. Do not toggle `settings`, run `setup`, `track` or `untrack` just to inspect: those mutate configuration, can create roles, or reconcile members. Preserve the supplied export, category flags and reviewed human holder/adoption lists privately for rollback.
 
-TuxedoMan also supports event roles; confirm whether that functionality is enabled/in use. Mr-Clean's current release does not replace TuxedoMan event-role automation. Existing event roles remain, but retiring the bot would stop that automation. This is a scope blocker if used.
+The operator confirmed TuxedoMan scheduled-event automation is unused; replacement is not required.
 
 Before final bot removal, confirm whether TuxedoMan retains guild tracking data after removal/reinvite. If unknown, obtain a complete export and a tested/documented manual restoration procedure; an invite link alone does not restore its private mappings. Its public original invite requests permissions `268443648`; record additional member assignments above and role hierarchy. Do not assume reinviting automatically restores custom roles/settings.
 
@@ -191,7 +191,7 @@ Stage the seven exported mappings while `/activity list` shows guild management 
 
 Omit application-ID restrictions for these name/type mappings: no IDs were exported and none should be guessed. Use `/activity edit id:<existing-rule-id> ...` if a mapping was already staged; repeating `track` for an existing name/type is rejected. Preserve `Gartic` → Playing Gartic Phone and `Among Us` → A Mong Goose exactly; do not substitute role names for activity names.
 
-These are the exact fallback commands **if all four categories are approved enabled**:
+All four generic categories are now approved enabled. Stage these exact commands while guild management remains disabled:
 
 ```text
 /activity fallback type:Playing enabled:true role:<@&1069145493852131329>
@@ -201,17 +201,18 @@ These are the exact fallback commands **if all four categories are approved enab
 /activity list
 ```
 
-Playing/Other Games is intended enabled. **Listening/Watching/Streaming enable flags remain a deployment question:** retaining the roles does not establish the previous enable flags. If a category must remain disabled, use its exact command above with `enabled:false`; record the approved final set before execution. Never use `create-default` or `create-role` for these eleven existing roles. Staged enabled rules/fallbacks cannot assign roles until the guild management switch is enabled.
+All four approved fallback flags may be true while the guild-wide management switch remains false. Never use `create-default` or `create-role` for the eleven existing roles. No activity roles may be assigned during this staging phase.
 
-For the new dedicated Codenames role, first inspect a participant's real PreMiD activity. Then, with guild management still disabled, use the confirmed name and supported type:
+The operator confirmed Codenames through the live diagnostic: name `Codenames`, type Playing, application ID `817859401477259315`. Gartic.io was also observed as Playing with application ID `808668919635247104`; retain the approved name/type-only Gartic.io rule rather than adding an unrequested application restriction. With guild management still disabled, create/configure the one new dedicated role:
 
 ```text
-/activity inspect member:@Participant
-/activity track name:"<exact reported Codenames activity name>" type:<reported type> create-role:"Playing Codenames"
+/activity track name:Codenames type:Playing application-id:817859401477259315 create-role:"Playing Codenames"
 /activity list
 ```
 
-Only this new dedicated role uses `create-role`. The placeholders are intentional: the PreMiD name/type is still unknown, so an executable match cannot safely be filled in yet. Record the resulting role ID from configuration/Discord and verify Manage Roles/hierarchy. No Codenames application-ID restriction is needed unless independently verified and explicitly chosen. Keep the new role on rollback; do not automatically delete it or touch the community role.
+Record the resulting role ID and select that same new role in `/voice edit channel:<Codenames source 1126902663607484476> add-role:@Playing-Codenames`. The enabled presence registration must exist **before** adding the voice binding: the deployed pause safeguard freezes its shared role while guild management is false. Verify zero owned grants/assignments after staging. Keep the new role on rollback; do not automatically delete it or touch community role `963037960230551582`.
+
+**Operator-requested Stage 2 confirmation boundary:** commands above are executed manually in Discord, not by pasting them into Codex. After staging/creation/binding, recheck the live database and Discord configuration, then stop and obtain a fresh explicit confirmation before removing TuxedoMan's permission roles or enabling guild management. No adoption or retirement is authorized across that boundary without confirmation.
 
 **Manual transfer interlock:** in Discord Server Settings → Members, select **TuxedoMan `441366628836442122`**, remove **RoleBot `767344292284334090` and tuxbot `1324170106099597372` from that member only**. Keep all role objects, other member assignments and VC Roles unchanged. Reopen the member/role settings and verify no effective Administrator/Manage Roles remains (include @everyone and every remaining role). Let in-flight operations settle and confirm no further TuxedoMan role mutations. Do not edit the shared RoleBot permissions. If effective revocation cannot be established, do not enable Mr-Clean. This is reversible and works without host access.
 
