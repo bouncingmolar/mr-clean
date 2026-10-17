@@ -2,6 +2,8 @@
 
 Prepared 18 October 2026 (Australia/Brisbane) for candidate **`dacd084`**, using read-only Docker, PostgreSQL and Discord GET checks. **No mutating preparation/cutover/build/rollback block below was executed; only read-only audit checks were performed.** Run them only after explicit approval of the maintenance window. This environment-specific checklist supplements [the coordinated guide](tuxedoman-cutover.md); the TuxedoMan retirement here uses Discord actions, not a presumed local service.
 
+A later read-only preflight found global management **already enabled**, all eight rules/four fallbacks enabled, Codenames application restriction configured, and TuxedoMan's two permission-role assignments removed. The [member-hierarchy correction procedure](activity-role-hierarchy-fix.md) records this current state. Historical Stage 1/2 disabled-state steps below are not instructions to reset/replay existing configuration. Do not move a shared bot permission role to work around the old member-rank guard.
+
 ## Verified deployment facts
 
 - Host `eggdraw-pi`, ARM64; repository `/home/tim/mr-clean`, branch `feature/voice-activity-logging`, clean at `dacd084` when inspected. Existing implementation validation: 143 tests, Release build zero warnings/errors.

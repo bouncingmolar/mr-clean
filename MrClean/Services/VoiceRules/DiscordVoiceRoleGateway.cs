@@ -27,10 +27,17 @@ public class DiscordVoiceRoleGateway : IVoiceRoleGateway
         var g = _client.GetGuild(guild); var r = g?.GetRole(role); var member = g?.GetUser(user);
         var bot = g?.CurrentUser;
         return Task.FromResult(g?.IsConnected == true && member != null && bot != null && r != null &&
-            !r.IsManaged && r.Id != guild && !r.Permissions.Administrator && !r.Permissions.ManageRoles &&
-            !r.Permissions.ManageGuild && bot.GuildPermissions.ManageRoles && r.Position < bot.Hierarchy &&
-            member.Id != g.OwnerId && member.Hierarchy < bot.Hierarchy);
+            CanManageRole(g.Id, g.OwnerId, member, bot, bot.Hierarchy, r));
     }
+
+    // Discord constrains the ROLE being assigned/removed, not the recipient's highest role.
+    // Keep the existing owner exclusion as application policy, separate from API requirements.
+    internal static bool CanManageRole(ulong guild, ulong owner, IGuildUser member, IGuildUser bot,
+        int botHierarchy, IRole role) =>
+        member.Id != owner && bot.GuildPermissions.ManageRoles && role.Id != guild &&
+        !role.IsManaged && !role.Permissions.Administrator && !role.Permissions.ManageRoles &&
+        !role.Permissions.ManageGuild && role.Position < botHierarchy;
+
     public Task AddAsync(ulong guild, ulong user, ulong role, CancellationToken token) =>
         _client.GetGuild(guild).GetUser(user).AddRoleAsync(role, new RequestOptions { CancelToken = token });
     public Task RemoveAsync(ulong guild, ulong user, ulong role, CancellationToken token) =>
