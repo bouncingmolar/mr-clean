@@ -22,6 +22,91 @@ namespace MrClean.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("MrClean.Models.ActivityFallback", b =>
+                {
+                    b.Property<decimal>("GuildId")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("RoleId")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.HasKey("GuildId", "Type");
+
+                    b.ToTable("ActivityFallbacks");
+                });
+
+            modelBuilder.Entity("MrClean.Models.ActivityGuildSettings", b =>
+                {
+                    b.Property<decimal>("GuildId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("GuildId");
+
+                    b.ToTable("ActivityGuildSettings");
+                });
+
+            modelBuilder.Entity("MrClean.Models.ActivityMemberState", b =>
+                {
+                    b.Property<decimal>("GuildId")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<decimal>("UserId")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<string>("RoleIdsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("GuildId", "UserId");
+
+                    b.ToTable("ActivityMemberStates");
+                });
+
+            modelBuilder.Entity("MrClean.Models.ActivityRule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal?>("ApplicationId")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("GuildId")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("RoleId")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GuildId", "Type", "Name")
+                        .IsUnique();
+
+                    b.ToTable("ActivityRules");
+                });
+
             modelBuilder.Entity("MrClean.Models.MessageFilter", b =>
                 {
                     b.Property<int>("Id")
@@ -131,6 +216,119 @@ namespace MrClean.Migrations
                     b.HasIndex("RoleLoggingConfigurationId");
 
                     b.ToTable("RoleLogRoutes");
+                });
+
+            modelBuilder.Entity("MrClean.Models.VoiceActivityState", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Json")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("VoiceActivityStates");
+                });
+
+            modelBuilder.Entity("MrClean.Models.VoiceChannelRule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ActivityName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("ChannelId")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<decimal>("DestinationId")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<bool>("DynamicName")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("GuildId")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<bool>("LogDeparture")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("LogJoin")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("RoleIdsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("TrackDuration")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("TrackInterruptions")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Wording")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GuildId", "ChannelId")
+                        .IsUnique();
+
+                    b.ToTable("VoiceChannelRules");
+                });
+
+            modelBuilder.Entity("MrClean.Models.VoiceLogMessage", b =>
+                {
+                    b.Property<long>("Id")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("AttemptedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("Destination")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Destination");
+
+                    b.ToTable("VoiceLogMessages");
+                });
+
+            modelBuilder.Entity("MrClean.Models.VoiceRoleOwnership", b =>
+                {
+                    b.Property<decimal>("GuildId")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<decimal>("UserId")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<decimal>("RoleId")
+                        .HasColumnType("numeric(20,0)");
+
+                    b.Property<bool>("Confirmed")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("GuildId", "UserId", "RoleId");
+
+                    b.ToTable("VoiceRoleOwnerships");
                 });
 
             modelBuilder.Entity("MrClean.Models.RoleLogRoute", b =>

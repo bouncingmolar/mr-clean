@@ -16,6 +16,9 @@ public class RoleChangeLogger
         _logger = logger;
     }
 
+    internal static ulong Destination(ulong role, IEnumerable<MrClean.Models.RoleLogRoute> routes, ulong fallback) =>
+        routes.FirstOrDefault(x => x.RoleId == role)?.ChannelId ?? fallback;
+
     public void Register(DiscordSocketClient client)
     {
         client.GuildMemberUpdated += HandleAsync;
@@ -59,11 +62,7 @@ public class RoleChangeLogger
 
             // Group changes by their configured destination.
             // Unrouted roles go to the default role-log channel.
-            var groups = changes.GroupBy(change =>
-                config.Routes
-                    .FirstOrDefault(x => x.RoleId == change.Role.Id)
-                    ?.ChannelId
-                ?? config.DefaultChannelId);
+            var groups = changes.GroupBy(change => Destination(change.Role.Id, config.Routes, config.DefaultChannelId));
 
             foreach (var group in groups)
             {
