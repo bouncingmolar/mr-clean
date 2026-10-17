@@ -158,26 +158,11 @@ public class VoiceActivityTrackerTests
         Assert.That(_tracker.Pending.All(x => x.Destination == 100), Is.True);
     }
 
-    [Test] public void RoutingUsesSourceIdsAndGeneralRenameDoesNotRouteToGames()
+    [Test] public void RulesResolveFixedAndDynamicLabelsByPolicy()
     {
-        var options = new VoiceLoggingOptions { GeneralChannelId = 10, LogChannelId = 806802061693550652 };
-        options.Channels.Add("11", "Music"); options.Channels.Add("12", "Codenames");
-        options.ChannelLogDestinations.Add("11", 943558876706533477);
-        options.ChannelLogDestinations.Add("12", 1556935771049689119);
-        Assert.That(options.Activity(10, "Among Us"), Is.EqualTo("Among Us"));
-        Assert.That(options.Destination(10), Is.EqualTo(806802061693550652UL));
-        Assert.That(options.Destination(11), Is.EqualTo(943558876706533477UL));
-        Assert.That(options.Destination(12), Is.EqualTo(1556935771049689119UL));
-        Assert.That(options.Destination(13), Is.EqualTo(options.LogChannelId));
-    }
-
-    [Test] public void ChannelConfigurationUsesIdsAndGeneralChannelName()
-    {
-        var options = new VoiceLoggingOptions { GeneralChannelId = 10 };
-        options.Channels.Add("11", "Codenames");
-        Assert.That(options.Activity(10, "Lethal Company"), Is.EqualTo("Lethal Company"));
-        Assert.That(options.Activity(11, "Renamed"), Is.EqualTo("Codenames"));
-        Assert.That(options.Activity(12, "Codenames"), Is.Null);
-        Assert.That(options.ReconnectWindowSeconds, Is.EqualTo(120));
+        var rule = new MrClean.Models.VoiceChannelRule { ActivityName = "Music", Wording = "Listening to {activity}" };
+        Assert.That(rule.Activity("Renamed channel"), Is.EqualTo("Listening to Music"));
+        rule.DynamicName = true;
+        Assert.That(rule.Activity("Among Us"), Is.EqualTo("Listening to Among Us"));
     }
 }

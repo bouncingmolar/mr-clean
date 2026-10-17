@@ -95,12 +95,10 @@ public class SlashCommandDispatcher
             return;
         }
 
-        // It's safe to typecast here, as the command is registered guild-only
-        var guild = (command.Channel as SocketGuildChannel)!.Guild;
-        var member = guild.GetUser(command.User.Id);
-
-        // If the member doesn't have the MANAGE_GUILD permissions
-        if (member is not {GuildPermissions.ManageGuild: true})
+        // Validate context and authorization on the server, independent of command visibility.
+        var guild = (command.Channel as SocketGuildChannel)?.Guild;
+        var member = guild?.GetUser(command.User.Id);
+        if (member == null || (!member.GuildPermissions.ManageGuild && !member.GuildPermissions.Administrator))
         {
             await command.RespondAsync(
                 ephemeral: true,

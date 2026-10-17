@@ -1,30 +1,23 @@
 using Discord;
 using Discord.WebSocket;
-using Microsoft.Extensions.Options;
-using MrClean.Configuration;
 
 namespace MrClean.Services.RoleLogging;
 
 public class RoleChangeLogger
 {
     private readonly IRoleLoggingService _settings;
-    private readonly VoiceLoggingOptions _voice;
-    private readonly ulong _guildId;
     private readonly ILogger<RoleChangeLogger> _logger;
 
     public RoleChangeLogger(
         IRoleLoggingService settings,
-        ILogger<RoleChangeLogger> logger,
-        IOptions<VoiceLoggingOptions> voice, IOptions<DiscordOptions> discord)
+        ILogger<RoleChangeLogger> logger)
     {
         _settings = settings;
-        _voice = voice.Value;
-        _guildId = discord.Value.GuildId;
         _logger = logger;
     }
 
-    internal bool SuppressRole(ulong guildId, ulong roleId) =>
-        _voice.Enabled && guildId == _guildId && _voice.ConnectedRoleId != 0 && roleId == _voice.ConnectedRoleId;
+    internal static ulong Destination(ulong role, IEnumerable<MrClean.Models.RoleLogRoute> routes, ulong fallback) =>
+        routes.FirstOrDefault(x => x.RoleId == role)?.ChannelId ?? fallback;
 
     public void Register(DiscordSocketClient client)
     {
@@ -46,11 +39,11 @@ public class RoleChangeLogger
             var afterIds = after.Roles.Select(x => x.Id).ToHashSet();
 
             var added = after.Roles
-                .Where(x => !beforeIds.Contains(x.Id) && !SuppressRole(after.Guild.Id, x.Id))
+                .Where(x => !beforeIds.Contains(x.Id))
                 .ToList();
 
             var removed = before.Roles
-                .Where(x => !afterIds.Contains(x.Id) && !SuppressRole(after.Guild.Id, x.Id))
+                .Where(x => !afterIds.Contains(x.Id))
                 .ToList();
 
             if (added.Count == 0 && removed.Count == 0)
@@ -69,11 +62,7 @@ public class RoleChangeLogger
 
             // Group changes by their configured destination.
             // Unrouted roles go to the default role-log channel.
-            var groups = changes.GroupBy(change =>
-                config.Routes
-                    .FirstOrDefault(x => x.RoleId == change.Role.Id)
-                    ?.ChannelId
-                ?? config.DefaultChannelId);
+            var groups = changes.GroupBy(change => Destination(change.Role.Id, config.Routes, config.DefaultChannelId));
 
             foreach (var group in groups)
             {

@@ -13,9 +13,14 @@ public class MrCleanDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<VoiceChannelRule>().HasIndex(x => new { x.GuildId, x.ChannelId }).IsUnique();
+        modelBuilder.Entity<VoiceRoleOwnership>().HasKey(x => new { x.GuildId, x.UserId, x.RoleId });
         modelBuilder.Entity<VoiceLogMessage>().Property(x => x.Id).ValueGeneratedNever();
         modelBuilder.Entity<VoiceLogMessage>().HasIndex(x => x.Destination);
     }
+
+    public virtual DbSet<VoiceChannelRule> VoiceChannelRules { get; set; }
+    public virtual DbSet<VoiceRoleOwnership> VoiceRoleOwnerships { get; set; }
 
     public virtual DbSet<VoiceLogMessage> VoiceLogMessages { get; set; }
 

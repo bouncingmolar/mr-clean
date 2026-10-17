@@ -1,7 +1,10 @@
+using MrClean.Models;
+
 namespace MrClean.Services.VoiceLogging;
 
 public class VoiceSession
 {
+    public VoiceChannelRule? Rule { get; set; }
     public ulong UserId { get; set; }
     public ulong ChannelId { get; set; }
     public ulong Destination { get; set; }
@@ -26,35 +29,37 @@ public class VoiceActivityTracker
         Pending.Add(new VoiceLog(destination, $"🔊 <@{user}> joined <#{channel}>"));
 
     public void Transition(ulong user, ulong? channel, string? activity, DateTimeOffset now,
-        TimeSpan window, ulong destination, bool uncertain = false, Func<ulong, string?>? activityAtEnd = null)
+        TimeSpan window, ulong destination, bool uncertain = false, Func<ulong, string?>? activityAtEnd = null, VoiceChannelRule? rule = null)
     {
         var session = Sessions.SingleOrDefault(x => x.UserId == user);
         if (session?.ConnectedSince != null && session.ChannelId == channel) return;
         if (session?.ConnectedSince != null)
         {
             var end = uncertain ? session.LastObserved : now;
-            session.ConnectedSeconds += Math.Max(0, (end - session.ConnectedSince.Value).TotalSeconds);
+            if (session.Rule?.TrackDuration != false) session.ConnectedSeconds += Math.Max(0, (end - session.ConnectedSince.Value).TotalSeconds);
             session.ConnectedSince = null;
             session.Disconnected = end;
             var label = Safe(activityAtEnd?.Invoke(session.ChannelId) ?? session.Activity);
-            Pending.Add(new VoiceLog(session.Destination == 0 ? destination : session.Destination,
-                $"<@{user}> left <#{session.ChannelId}> ({label})\nConnected for {Duration(session.ConnectedSeconds)}.\n{session.Interruptions} brief interruption{(session.Interruptions == 1 ? "" : "s")}." +
+            if (session.Rule?.LogDeparture != false) Pending.Add(new VoiceLog(session.Destination == 0 ? destination : session.Destination,
+                $"<@{user}> left <#{session.ChannelId}> ({label})" +
+                (session.Rule?.TrackDuration != false ? $"\nConnected for {Duration(session.ConnectedSeconds)}." : "") +
+                (session.Rule?.TrackInterruptions != false ? $"\n{session.Interruptions} brief interruption{(session.Interruptions == 1 ? "" : "s")}." : "") +
                 (uncertain ? "\nConnection during the observation gap is unknown; only confirmed time is counted." : ""), true));
         }
         if (channel == null || activity == null) return;
-        if (session != null && session.ChannelId == channel && now - session.Disconnected <= window)
+        if (session != null && session.ChannelId == channel && session.Rule?.TrackInterruptions != false && now - session.Disconnected <= window)
         {
             session.Interruptions++;
             session.ConnectedSince = now;
             session.LastObserved = now;
-            Join(session.Destination == 0 ? destination : session.Destination, user, channel.Value);
+            if (session.Rule?.LogJoin != false) Join(session.Destination == 0 ? destination : session.Destination, user, channel.Value);
             session.Disconnected = null;
             return;
         }
         if (session != null) Sessions.Remove(session);
         Sessions.Add(new VoiceSession { UserId = user, ChannelId = channel.Value, Activity = activity, Destination = destination,
-            Started = now, ConnectedSince = now, LastObserved = now });
-        Join(destination, user, channel.Value);
+            Started = now, ConnectedSince = now, LastObserved = now, Rule = rule == null ? null : System.Text.Json.JsonSerializer.Deserialize<VoiceChannelRule>(System.Text.Json.JsonSerializer.Serialize(rule)) });
+        if (rule?.LogJoin != false) Join(destination, user, channel.Value);
     }
 
     public void Checkpoint(DateTimeOffset now, TimeSpan window)

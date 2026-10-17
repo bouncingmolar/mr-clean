@@ -21,6 +21,19 @@ public class VoiceActivityMigrationTests
     }
 
     [Test]
+    public void RulesMigrationSeedsFourRulesWithoutRewritingVoiceSessionsAndDerivesConnectedRoute()
+    {
+        using var db = new MrCleanDbContext(new DbContextOptionsBuilder<MrCleanDbContext>()
+            .UseNpgsql("Host=localhost;Database=unused;Username=unused").Options);
+        var sql = db.GetService<IMigrator>().GenerateScript("20261017120000_AddVoiceActivityState", "20261017130932_VoiceChannelRules");
+        foreach (var id in new[] { "798528429091061780", "792285032713945119", "1126920146099912744", "1126902663607484476" })
+            Assert.That(sql, Does.Contain(id));
+        Assert.That(sql, Does.Contain("[]").And.Contain("894787914599370803").And.Contain("1069145494674214973"));
+        Assert.That(sql, Does.Not.Contain("UPDATE \"VoiceActivityStates\"").And.Not.Contain("DELETE FROM \"VoiceLogMessages\""));
+        Assert.That(sql, Does.Contain("count(DISTINCT \"ChannelId\")"));
+    }
+
+    [Test]
     public void SnapshotMatchesRuntimeModel()
     {
         using var db = new MrCleanDbContext(new DbContextOptionsBuilder<MrCleanDbContext>()

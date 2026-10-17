@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using MrClean.Configuration;
 using MrClean.Data;
 using MrClean.Models;
+using MrClean.Services.VoiceRules;
 
 namespace MrClean.Services.VoiceLogging;
 
@@ -20,25 +21,26 @@ public class VoiceActivityLogger : BackgroundService
     private readonly object _captureLock = new();
     private readonly SemaphoreSlim _deliveryWake = new(0, 1);
     private bool _observing;
+    private bool _rulesLoaded;
+    private readonly VoiceRulesService _rulesService;
+    private IReadOnlyDictionary<ulong, VoiceChannelRule> _rules = new Dictionary<ulong, VoiceChannelRule>();
     private bool _stopping;
     private Task? _processing;
     private TimeSpan Window => TimeSpan.FromSeconds(_options.ReconnectWindowSeconds);
 
     public VoiceActivityLogger(DiscordSocketClient client, IDbContextFactory<MrCleanDbContext> factory,
-        IOptions<VoiceLoggingOptions> options, IOptions<DiscordOptions> discord, ILogger<VoiceActivityLogger> logger)
+        IOptions<VoiceLoggingOptions> options, IOptions<DiscordOptions> discord, ILogger<VoiceActivityLogger> logger, VoiceRulesService rulesService)
     {
         _client = client; _factory = factory; _options = options.Value;
-        _guildId = discord.Value.GuildId; _logger = logger;
+        _guildId = discord.Value.GuildId; _logger = logger; _rulesService = rulesService;
     }
 
     public override Task StartAsync(CancellationToken cancellationToken)
     {
         if (_options.Enabled)
         {
-            if (_options.LogChannelId == 0 || _options.ReconnectWindowSeconds < 0 ||
-                _options.Channels.Any(x => (!ulong.TryParse(x.Key, out var id) || id == 0) || string.IsNullOrWhiteSpace(x.Value)) ||
-                _options.ChannelLogDestinations.Any(x => (!ulong.TryParse(x.Key, out var id) || id == 0) || x.Value == 0))
-                throw new InvalidOperationException("Invalid VoiceLogging configuration.");
+            if (_options.ReconnectWindowSeconds < 0) throw new InvalidOperationException("Invalid reconnect window.");
+            _rulesService.Changed += RulesChanged;
             _client.Ready += ReadyAsync;
             _client.GuildAvailable += GuildAvailableAsync;
             _client.Disconnected += DisconnectedAsync;
@@ -46,6 +48,12 @@ public class VoiceActivityLogger : BackgroundService
             _client.UserVoiceStateUpdated += VoiceAsync;
         }
         return base.StartAsync(cancellationToken);
+    }
+
+    private void RulesChanged(ulong guild, IReadOnlyList<VoiceChannelRule> rules)
+    {
+        if (guild != _guildId) return;
+        lock (_captureLock) { _rules = rules.ToDictionary(x => x.ChannelId); _rulesLoaded = true; CaptureRuleMembership(); }
     }
 
     private Task ReadyAsync() { CaptureSnapshot(); return Task.CompletedTask; }
@@ -68,13 +76,29 @@ public class VoiceActivityLogger : BackgroundService
             var at = DateTimeOffset.UtcNow;
             var userId = user.Id;
             var channel = after.VoiceChannel;
-            var activity = channel == null ? null : _options.Activity(channel.Id, channel.Name);
+            var rule = channel == null ? null : _rules.GetValueOrDefault(channel.Id);
+            var activity = rule?.Enabled == true ? rule.Activity(channel!.Name) : null;
             ulong? channelId = activity == null ? null : channel!.Id;
-            var destination = _options.Destination(channelId ?? before.VoiceChannel?.Id ?? 0);
+            var destination = rule?.DestinationId ?? _options.LogChannelId;
             var departingId = before.VoiceChannel?.Id;
-            var departingName = departingId == _options.GeneralChannelId ? before.VoiceChannel?.Name : null;
-            _pump.Capture(state => state.Transition(userId, channelId, activity, at, Window, destination,
-                activityAtEnd: id => id == departingId ? departingName : null));
+            var oldRule = departingId == null ? null : _rules.GetValueOrDefault(departingId.Value);
+            var departingName = oldRule?.DynamicName == true ? oldRule.Activity(before.VoiceChannel!.Name) : null;
+            _pump.Capture(state =>
+            {
+                var active = state.Sessions.SingleOrDefault(x => x.UserId == userId);
+                if (active?.Rule != null)
+                {
+                    active.Rule.LogDeparture = oldRule?.Enabled == true && oldRule.LogDeparture;
+                    active.Rule.LogJoin = rule?.Enabled == true && rule.LogJoin;
+                }
+                else if (active != null && oldRule?.Enabled != true)
+                {
+                    // Legacy sessions predate rule snapshots; disabling/removing still suppresses departures.
+                    active.Rule = new VoiceChannelRule { LogJoin = false, LogDeparture = false };
+                }
+                state.Transition(userId, channelId, activity, at, Window, destination,
+                    activityAtEnd: id => id == departingId ? departingName : null, rule: rule);
+            });
         }
         return Task.CompletedTask;
     }
@@ -84,26 +108,48 @@ public class VoiceActivityLogger : BackgroundService
         lock (_captureLock)
         {
             var guild = _client.GetGuild(_guildId);
-            if (_stopping || _observing || guild?.IsConnected != true || _client.ConnectionState != ConnectionState.Connected) return;
+            if (!_rulesLoaded || _stopping || _observing || guild?.IsConnected != true || _client.ConnectionState != ConnectionState.Connected) return;
             var at = DateTimeOffset.UtcNow;
+            var snapshotRules = _rules;
             var names = guild.VoiceChannels.ToDictionary(x => x.Id, x => x.Name);
             var occupants = guild.VoiceChannels.SelectMany(channel => channel.ConnectedUsers
                 .Where(user => !user.IsBot).Select(user => (User: user.Id, Channel: channel.Id, Name: channel.Name))).ToArray();
             _pump.Capture(state =>
             {
                 foreach (var session in state.Sessions.Where(x => x.ConnectedSince != null).ToList())
-                    state.Transition(session.UserId, null, null, at, Window, _options.Destination(session.ChannelId),
-                        uncertain: true, activityAtEnd: id => id == _options.GeneralChannelId ? names.GetValueOrDefault(id) : null);
+                {
+                    if (!snapshotRules.TryGetValue(session.ChannelId, out var previousRule) || !previousRule.Enabled)
+                    {
+                        session.Rule ??= new VoiceChannelRule();
+                        session.Rule.LogDeparture = false;
+                    }
+                    state.Transition(session.UserId, null, null, at, Window, session.Destination == 0 ? _options.LogChannelId : session.Destination,
+                        uncertain: true, activityAtEnd: id => snapshotRules.TryGetValue(id, out var endRule) && endRule.DynamicName && names.TryGetValue(id, out var name) ? endRule.Activity(name) : null);
+                }
                 foreach (var occupant in occupants)
                 {
-                    var activity = _options.Activity(occupant.Channel, occupant.Name);
+                    var rule = snapshotRules.GetValueOrDefault(occupant.Channel);
+                    var activity = rule?.Enabled == true ? rule.Activity(occupant.Name) : null;
                     if (activity != null) state.Transition(occupant.User, occupant.Channel, activity, at, Window,
-                        _options.Destination(occupant.Channel));
+                        rule!.DestinationId, rule: rule);
                 }
                 state.Checkpoint(at, Window);
             });
             _observing = true;
         }
+    }
+
+    private void CaptureRuleMembership()
+    {
+        // Caller holds the capture lock; this only reads the gateway cache.
+        var guild = _client.GetGuild(_guildId);
+        if (!_observing || _stopping || guild?.IsConnected != true || _client.ConnectionState != ConnectionState.Connected) return;
+        var at = DateTimeOffset.UtcNow;
+        var rules = _rules;
+        var channelNames = guild.VoiceChannels.ToDictionary(x => x.Id, x => x.Name);
+        var occupants = guild.VoiceChannels.SelectMany(channel => channel.ConnectedUsers.Where(x => !x.IsBot)
+            .Select(x => new VoiceOccupant(x.Id, channel.Id, channel.Name))).ToArray();
+        _pump.Capture(state => VoiceRuleObservation.Reconcile(state, occupants, rules, at, Window, _options.LogChannelId, channelNames));
     }
 
     private async Task PersistAsync(VoiceActivityTracker state, CancellationToken token)
@@ -142,15 +188,26 @@ public class VoiceActivityLogger : BackgroundService
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));
         while (await timer.WaitForNextTickAsync(token))
         {
+            await RefreshRulesAsync(token);
             CaptureSnapshot(); // Also handles gateway resumes without a new Ready event.
             lock (_captureLock)
             {
                 if (_stopping || !_observing || _client.ConnectionState != ConnectionState.Connected ||
                     _client.GetGuild(_guildId)?.IsConnected != true) continue;
-                var at = DateTimeOffset.UtcNow;
-                _pump.Capture(state => state.Checkpoint(at, Window));
+                CaptureRuleMembership();
             }
         }
+    }
+
+    private async Task RefreshRulesAsync(CancellationToken token)
+    {
+        try
+        {
+            var rules = (await _rulesService.ListAsync(_guildId, token)).ToDictionary(x => x.ChannelId);
+            lock (_captureLock) { _rules = rules; _rulesLoaded = true; }
+        }
+        catch (Exception ex) when (!token.IsCancellationRequested)
+        { _logger.LogWarning(ex, "Voice rules unavailable; preserving last known rules and retrying."); }
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -172,6 +229,12 @@ public class VoiceActivityLogger : BackgroundService
                 await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
             }
         }
+        while (!_rulesLoaded)
+        {
+            await RefreshRulesAsync(stoppingToken);
+            if (!_rulesLoaded) await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken);
+        }
+        CaptureSnapshot();
         _processing = _pump.RunAsync(state, () => PersistAsync(state, stoppingToken), stoppingToken);
         await Task.WhenAll(_processing, ObserveAsync(stoppingToken), DeliverAsync(stoppingToken));
     }
@@ -244,6 +307,7 @@ public class VoiceActivityLogger : BackgroundService
 
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
+        _rulesService.Changed -= RulesChanged;
         _client.Ready -= ReadyAsync; _client.GuildAvailable -= GuildAvailableAsync;
         _client.Disconnected -= DisconnectedAsync; _client.GuildUnavailable -= GuildUnavailableAsync;
         _client.UserVoiceStateUpdated -= VoiceAsync;

@@ -1,3 +1,5 @@
+using MrClean.Services.VoiceRules;
+using MrClean.Commands.Voice;
 using Discord;
 using MrClean.Commands.Retention;
 using MrClean.Commands.RoleLogging;
@@ -46,6 +48,7 @@ var host = Host.CreateDefaultBuilder(args)
             .AddCommand<RoleLoggingSettingsCommand>()
             .AddCommand<SetRoleLoggingCommand>()
             .AddCommand<TestNoisyRoleLogCleanupCommand>()
+            .AddCommand<VoiceCommand>()
         );
 
         services.AddTransient<MessageFilteringService>();
@@ -60,6 +63,10 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<MessageRetentionScanner>();
         services.AddSingleton<IRoleLoggingService, RoleLoggingService>();
         services.AddSingleton<RoleChangeLogger>();
+        services.AddSingleton<VoiceRulesService>();
+        services.AddSingleton<IVoiceRoleGateway, DiscordVoiceRoleGateway>();
+        services.AddSingleton<VoiceRoleReconciler>();
+        services.AddHostedService<VoiceRoleBackgroundService>();
         services.AddDiscordHostedServices();
         services.AddHostedService<TimedMuteService>();
         services.AddHostedService<MessageRetentionBackgroundService>();
